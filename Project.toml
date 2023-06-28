@@ -1,0 +1,13 @@
+name = "RelationalEvents"
+uuid = "bc9d85ce-390f-4ec2-a6bf-6f05cd1bda14"
+authors = ["Jakob Hoffmann <jfb-hoffmann@hotmail.de> and contributors"]
+version = "1.0.0-DEV"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
