@@ -67,5 +67,4 @@ function riskset(h::EventHistory{E,A}, t)::Vector{A} where {E,A}
   findall(a -> active(h, a, t), h.actors)
 end
 
-
 end # module

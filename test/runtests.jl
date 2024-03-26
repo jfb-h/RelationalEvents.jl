@@ -44,3 +44,10 @@ end
   @test active(hist2, 1, 4) == true
   @test riskset(hist2, 4) == [1, 3]
 end
+
+@testset "Statistics" begin
+  # activity(Window(2), hist, e)
+  # ineria(Window(2), hist, e)
+  # reciprocity(Window(2), hist, e)
+  # transitivity(Decay(0.5), hist, e)
+end
