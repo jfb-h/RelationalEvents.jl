@@ -22,6 +22,9 @@ function EventHistory(events::Vector{<:AbstractRelationalEvent{A,T}}) where {A,T
     EventHistory(events, actors, entries, exits)
 end
 
+events(hist::EventHistory) = hist.events
+actors(hist::EventHistory) = hist.actors
+
 # Iteration and indexing interfaces
 
 Base.length(hist::EventHistory) = length(hist.events)

@@ -15,7 +15,7 @@ const RE = RelationalEvents
   @test eventtime(re) == 1
 end
 
-es = [(1, 2, 1), (2, 3, 2), (1, 3, 3), (3, 1, 4)]
+es = [(3, 1, 1), (2, 3, 2), (1, 3, 3), (3, 1, 4)]
 es = map(t -> RelationalEvent(t...), es)
 actors = [1, 2, 3]
 entries = [1, 1, 1]
@@ -29,6 +29,7 @@ hist2 = EventHistory(es, actors, entries, exits)
   @test hist2 isa EventHistory
 
   @test length(hist1) == 4
+  @test events(hist1) == events(hist2) == es
   @test map(identity, hist1) == es
   @test sender.(hist1) == sender.(es)
 
@@ -45,9 +46,14 @@ end
   @test riskset(hist2, 4) == [1, 3]
 end
 
+@testset "Windows" begin
+  @test RE.getwindow(Window(1), hist1, lastindex(hist1)) == @view events(hist1)[3:3]
+end
+
 @testset "Statistics" begin
+  @test inertia(Window(4), hist1, lastindex(hist1)) == 1
   # activity(Window(2), hist, e)
-  # ineria(Window(2), hist, e)
+  # inertia(Window(2), hist, e)
   # reciprocity(Window(2), hist, e)
   # transitivity(Decay(0.5), hist, e)
 end
