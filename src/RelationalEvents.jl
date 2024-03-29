@@ -1,6 +1,7 @@
 module RelationalEvents
 
 using Dates
+using Accessors
 
 export AbstractRelationalEvent, RelationalEvent, MarkedRelationalEvent
 export sender, receiver, eventtime, mark

@@ -9,18 +9,44 @@ struct Window{T}
     size::T
 end
 
-function getwindow(window::Window, hist::EventHistory, i::Integer)
-    e = RelationalEvent(0, 0, eventtime(hist[i]) - window.size)
-    w = searchsortedfirst(events(hist), e; by=eventtime)
-    @view events(hist)[w:i-1]
+function getwindow(window::Window, hist::EventHistory{A,T,E}, t::T) where {A,T,E<:RelationalEvent}
+    # dummy events because searchsortedfirst also applies `by` to x
+    e1 = RelationalEvent(0, 0, t - window.size)
+    e2 = RelationalEvent(0, 0, t)
+    t1 = searchsortedfirst(events(hist), e1; by=eventtime)
+    t2 = searchsortedfirst(events(hist), e2; by=eventtime)
+    @view events(hist)[t1:t2-1]
 end
 
-function inertia(window::Window, hist::EventHistory{A,T,E}, i::Integer) where {A,T,E<:RelationalEvent}
-    events = getwindow(window, hist, i)
-    src = sender(hist[i])
-    dst = receiver(hist[i])
+# function inertia(::RelationalEvent, events, i::A, j::A, t::T) where {A,T}
+#     count(events) do e
+#         i == sender(e) && j == receiver(e)
+#     end
+# end
+
+function inertia(events, event::RelationalEvent)
     count(events) do e
-        src == sender(e) && dst == receiver(e)
+        sender(event) == sender(e) && receiver(event) == receiver(e)
+    end
+end
+
+function inertia(events, event::MarkedRelationalEvent)
+    count(events) do e
+        sender(event) == sender(e) && receiver(event) == receiver(e) && mark(event) == mark(e)
+    end
+end
+
+function inertia(
+    window::Window,
+    hist::EventHistory{A,T,E},
+    event::E,
+) where {A,T,E}
+
+    t = eventtime(event)
+    events = getwindow(window, hist, t)
+    map(riskset(hist, t)) do r
+        e = @set event.receiver = r
+        inertia(events, e)
     end
 end
 
