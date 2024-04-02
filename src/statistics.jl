@@ -1,52 +1,43 @@
-"""
-struct representing a time window of type T.
 
-This can be passed as a first argument to a statistic function
-to compute the statistic only over a window of specified length
-before the input event.
-"""
-struct Window{T}
-    size::T
+export Inertia
+
+abstract type AbstractStatistic end
+
+function map_kernel(stat::AbstractStatistic, hist::EventHistory, current_event)
+    k = kernel(stat)
+    sum(events(hist)) do previous_event
+        res = k(previous_event, current_event, hist)
+        stat.decay(res, eventtime(previous_event), eventtime(current_event))
+    end
 end
 
-function getwindow(window::Window, hist::EventHistory{A,T,E}, t::T) where {A,T,E<:RelationalEvent}
-    # dummy events because searchsortedfirst also applies `by` to x
-    e1 = RelationalEvent(0, 0, t - window.size)
-    e2 = RelationalEvent(0, 0, t)
-    t1 = searchsortedfirst(events(hist), e1; by=eventtime)
-    t2 = searchsortedfirst(events(hist), e2; by=eventtime)
-    @view events(hist)[t1:t2-1]
+function (stat::AbstractStatistic)(hist::EventHistory)::Vector{Vector{Float64}}
+    es = events(hist)
+    tstart = eventtime(first(hist)) + stat.window
+    start = searchsortedfirst(es, RelationalEvent(0, 0, tstart); by=eventtime)
+    tmap(@view es[start:end]) do current_event
+        t = eventtime(current_event)
+        prev = window(stat.window, hist, t)
+        map(riskset(hist, t)) do rec
+            e = RelationalEvent(sender(current_event), rec, t)
+            map_kernel(stat, prev, e)
+        end
+    end
 end
 
-# function inertia(::RelationalEvent, events, i::A, j::A, t::T) where {A,T}
-#     count(events) do e
-#         i == sender(e) && j == receiver(e)
-#     end
+struct Inertia{W<:AbstractWindow,D<:AbstractDecay} <: AbstractStatistic
+    window::W
+    decay::D
+end
+
+@inline function kernel(::Inertia)
+    (current_event, previous_event, hist) -> begin
+        res = sender(current_event) == sender(previous_event) &&
+              receiver(current_event) == receiver(previous_event)
+        float(res)
+    end
+end
+
+# @stat Inertia (ec, ep, hist) -> begin
+#     sender(ec) == sender(ep) && receiver(ec) == receiver(ep)
 # end
-
-function inertia(events, event::RelationalEvent)
-    count(events) do e
-        sender(event) == sender(e) && receiver(event) == receiver(e)
-    end
-end
-
-function inertia(events, event::MarkedRelationalEvent)
-    count(events) do e
-        sender(event) == sender(e) && receiver(event) == receiver(e) && mark(event) == mark(e)
-    end
-end
-
-function inertia(
-    window::Window,
-    hist::EventHistory{A,T,E},
-    event::E,
-) where {A,T,E}
-
-    t = eventtime(event)
-    events = getwindow(window, hist, t)
-    map(riskset(hist, t)) do r
-        e = @set event.receiver = r
-        inertia(events, e)
-    end
-end
-

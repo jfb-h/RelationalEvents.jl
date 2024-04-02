@@ -18,10 +18,9 @@ end
 es = [(3, 1, 1), (2, 3, 2), (1, 3, 3), (3, 1, 4)]
 es = map(t -> RelationalEvent(t...), es)
 actors = [1, 2, 3]
-entries = [1, 1, 1]
-exits = [5, 3, 5]
+spells = [1:5, 1:3, 1:5]
 hist1 = EventHistory(es)
-hist2 = EventHistory(es, actors, entries, exits)
+hist2 = EventHistory(es, actors, spells)
 
 @testset "EventHistory" begin
   @test typeof(es) <: Vector{<:AbstractRelationalEvent}
@@ -47,7 +46,7 @@ end
 end
 
 @testset "Windows" begin
-  @test RE.getwindow(Window(1), hist1, lastindex(hist1)) == @view events(hist1)[3:3]
+  @test RE.window(Window(1), hist1, lastindex(hist1)) == @view events(hist1)[3:3]
 end
 
 @testset "Statistics" begin

@@ -1,11 +1,10 @@
-mutable struct EventHistory{A,T,E<:AbstractRelationalEvent{A,T}}
-    events::Vector{E}
+mutable struct EventHistory{A,T,E<:AbstractRelationalEvent{A,T},V<:AbstractArray{E},R<:AbstractRange{T}}
+    events::V
     actors::Vector{A}
-    entries::Union{Vector{T},Dict{A,T}}
-    exits::Union{Vector{T},Dict{A,T}}
+    spells::Vector{R}
 end
 
-function EventHistory(events::Vector{<:AbstractRelationalEvent{A,T}}) where {A,T}
+function EventHistory(events::AbstractVector{<:AbstractRelationalEvent{A,T}}) where {A,T}
     actors = actortype(first(events))[]
     for e in events
         push!(actors, sender(e))
@@ -15,15 +14,14 @@ function EventHistory(events::Vector{<:AbstractRelationalEvent{A,T}}) where {A,T
 
     sort!(events, by=eventtime)
 
-    min, max = extrema(eventtime, events)
-    entries = fill(min, length(actors))
-    exits = fill(max, length(actors))
+    spells = fill(typemin(T):typemax(T), length(actors))
 
-    EventHistory(events, actors, entries, exits)
+    EventHistory(events, actors, spells)
 end
 
 events(hist::EventHistory) = hist.events
 actors(hist::EventHistory) = hist.actors
+spells(hist::EventHistory) = hist.spells
 
 # Iteration and indexing interfaces
 
@@ -38,5 +36,27 @@ Base.lastindex(hist::EventHistory) = Base.lastindex(hist.events)
 
 # Choice / risk set querying
 
-active(h::EventHistory, a, t)::Bool = h.entries[a] <= t <= h.exits[a]
-riskset(h::EventHistory, t) = findall(a -> active(h, a, t), h.actors)
+"""
+    isactive(h, i, t)
+
+Check if the `i`th actor is active at time `t`. Note that when 
+actors `actors(h)` are represented by a range of contiguous
+integers, `i` is equal to `actors(h)[i]`.
+"""
+isactive(h::EventHistory, i::Integer, t)::Bool = t in spells(h)[i]
+riskset(h::EventHistory, t) = findall(a -> isactive(h, a, t), actors(h))
+
+# function tosparse(hist::EventHistory)
+#     N, M = length(hist), length(actors(hist))
+#     dims = (N, M, M)
+#     data = Dict(map(enumerate(events(hist))) do (i, e)
+#         CartesianIndex(i, sender(e), receiver(e)) => true
+#     end)
+#
+#     SparseArray{Bool,3}(data, dims)
+# end
+
+function todimarray(hist)
+
+end
+
