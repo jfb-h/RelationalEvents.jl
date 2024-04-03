@@ -25,18 +25,18 @@ function (stat::AbstractStatistic)(hist::EventHistory)::Vector{Vector{Float64}}
     end
 end
 
-struct Inertia{W<:AbstractWindow,D<:AbstractDecay} <: AbstractStatistic
-    window::W
-    decay::D
-end
-
-@inline function kernel(::Inertia)
-    (current_event, previous_event, hist) -> begin
-        res = sender(current_event) == sender(previous_event) &&
-              receiver(current_event) == receiver(previous_event)
-        float(res)
-    end
-end
+# struct Inertia{W<:AbstractWindow,D<:AbstractDecay} <: AbstractStatistic
+#     window::W
+#     decay::D
+# end
+#
+# @inline function kernel(::Inertia)
+#     (current_event, previous_event, hist) -> begin
+#         res = sender(current_event) == sender(previous_event) &&
+#               receiver(current_event) == receiver(previous_event)
+#         float(res)
+#     end
+# end
 
 # @stat Inertia (ec, ep, hist) -> begin
 #     sender(ec) == sender(ep) && receiver(ec) == receiver(ep)
