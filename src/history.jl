@@ -7,8 +7,8 @@ end
 function EventHistory(events::AbstractVector{<:AbstractRelationalEvent{A,T}}) where {A,T}
     actors = actortype(first(events))[]
     for e in events
-        push!(actors, sender(e))
-        push!(actors, receiver(e))
+        push!(actors, src(e))
+        push!(actors, dst(e))
     end
     unique!(actors)
 
@@ -46,6 +46,11 @@ integers, `i` is equal to `actors(h)[i]`.
 isactive(h::EventHistory, i::Integer, t)::Bool = t in spells(h)[i]
 riskset(h::EventHistory, t) = findall(a -> isactive(h, a, t), actors(h))
 
+function before(hist::EventHistory{A,T,E}, t::T) where {A,T,E<:AbstractRelationalEvent{A,T}}
+    i = searchsortedfirst(events(hist), E(time=t); by=eventtime)
+    EventHistory(view(events(hist), firstindex(events(hist), i)), actors(hist), spells(hist))
+end
+
 # function tosparse(hist::EventHistory)
 #     N, M = length(hist), length(actors(hist))
 #     dims = (N, M, M)
@@ -56,7 +61,4 @@ riskset(h::EventHistory, t) = findall(a -> isactive(h, a, t), actors(h))
 #     SparseArray{Bool,3}(data, dims)
 # end
 
-function todimarray(hist)
-
-end
 

@@ -5,18 +5,18 @@ using Accessors
 using OhMyThreads: tmap
 
 export AbstractRelationalEvent, RelationalEvent, MarkedRelationalEvent
-export sender, receiver, eventtime, mark
+export src, dst, eventtime, mark
 
 export EventHistory
 export events, actors
 export isactive, riskset
 
-export Window, WindowPrevious
-export window
+export AbstractDecay, Window, NoDecay, LinearDecay, ExponentialDecay
 
-export NoDecay, LinearDecay, ExponentialDecay
+export AbstractStatistic
+export @statistic
 
-export inertia
+export Inertia, Reciprocity, Transitivity
 
 include("core.jl")
 include("history.jl")

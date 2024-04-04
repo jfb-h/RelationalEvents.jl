@@ -3,21 +3,22 @@ abstract type AbstractRelationalEvent{A,T} end
 actortype(::AbstractRelationalEvent{A,T}) where {A,T} = A
 timetype(::AbstractRelationalEvent{A,T}) where {A,T} = T
 
-struct RelationalEvent{A,T} <: AbstractRelationalEvent{A,T}
-    sender::A
-    receiver::A
+@kwdef struct RelationalEvent{A,T} <: AbstractRelationalEvent{A,T}
+    # default is to enable convenient searchsortedfirst (not sure if worth, but also not sure if problematic)
+    src::A = 0
+    dst::A = 0
     time::T
 end
 
-struct MarkedRelationalEvent{A,T,M} <: AbstractRelationalEvent{A,T}
-    sender::A
-    receiver::A
+@kwdef struct MarkedRelationalEvent{A,T,M} <: AbstractRelationalEvent{A,T}
+    src::A = 0
+    dst::A = 0
     time::T
-    mark::M
+    mark::M = 0
 end
 
-sender(e::AbstractRelationalEvent) = e.sender
-receiver(e::AbstractRelationalEvent) = e.receiver
+src(e::AbstractRelationalEvent) = e.src
+dst(e::AbstractRelationalEvent) = e.dst
 eventtime(e::AbstractRelationalEvent) = e.time
 mark(e::MarkedRelationalEvent) = e.mark
 

@@ -1,43 +1,36 @@
-
-export Inertia
-
 abstract type AbstractStatistic end
 
-function map_kernel(stat::AbstractStatistic, hist::EventHistory, current_event)
+function kernel end
+
+function map_kernel(stat::AbstractStatistic, hist::EventHistory, e_curr)
     k = kernel(stat)
-    sum(events(hist)) do previous_event
-        res = k(previous_event, current_event, hist)
-        stat.decay(res, eventtime(previous_event), eventtime(current_event))
+    sum(events(hist)) do e_prev
+        tdiff = eventtime(e_curr) - eventtime(e_prev)
+        res = k(e_prev, e_curr, hist)
+        float(res) * stat.decay(tdiff)
     end
 end
 
 function (stat::AbstractStatistic)(hist::EventHistory)::Vector{Vector{Float64}}
-    es = events(hist)
-    tstart = eventtime(first(hist)) + stat.window
-    start = searchsortedfirst(es, RelationalEvent(0, 0, tstart); by=eventtime)
-    tmap(@view es[start:end]) do current_event
-        t = eventtime(current_event)
-        prev = window(stat.window, hist, t)
+    tmap(events(hist)) do e_cur
+        t = eventtime(e_cur)
+        prev = before(hist, t)
         map(riskset(hist, t)) do rec
-            e = RelationalEvent(sender(current_event), rec, t)
+            e = RelationalEvent(src(e_cur), rec, t)
             map_kernel(stat, prev, e)
         end
     end
 end
 
-# struct Inertia{W<:AbstractWindow,D<:AbstractDecay} <: AbstractStatistic
-#     window::W
-#     decay::D
-# end
-#
-# @inline function kernel(::Inertia)
-#     (current_event, previous_event, hist) -> begin
-#         res = sender(current_event) == sender(previous_event) &&
-#               receiver(current_event) == receiver(previous_event)
-#         float(res)
-#     end
-# end
+macro statistic(stat, exp)
+    quote
+        struct $(esc(stat)){D<:AbstractDecay} <: AbstractStatistic
+            decay::D
+        end
 
-# @stat Inertia (ec, ep, hist) -> begin
-#     sender(ec) == sender(ep) && receiver(ec) == receiver(ep)
-# end
+        function RelationalEvents.kernel(x::$(esc(stat)))
+            $exp
+        end
+    end
+end
+
