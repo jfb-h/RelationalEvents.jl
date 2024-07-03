@@ -1,8 +1,10 @@
 module RelationalEvents
 
 using Dates
-using Accessors
+using SparseArrays
 using OhMyThreads: tmap
+using StatsBase: sample
+using ProgressMeter: @showprogress
 
 export AbstractRelationalEvent, RelationalEvent, MarkedRelationalEvent
 export src, dst, eventtime, mark
