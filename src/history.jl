@@ -23,6 +23,10 @@ events(hist::EventHistory) = hist.events
 actors(hist::EventHistory) = hist.actors
 spells(hist::EventHistory) = hist.spells
 
+actortype(::EventHistory{A,T,E,V,R}) where {A,T,E,V,R} = A
+eventtype(::EventHistory{A,T,E,V,R}) where {A,T,E,V,R} = E
+timetype(::EventHistory{A,T,E,V,R}) where {A,T,E,V,R} = T
+
 # Iteration and indexing interfaces
 
 Base.length(hist::EventHistory) = length(hist.events)
