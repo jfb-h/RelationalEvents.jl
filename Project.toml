@@ -4,6 +4,7 @@ authors = ["Jakob Hoffmann <jfb-hoffmann@hotmail.de> and contributors"]
 version = "1.0.0-DEV"
 
 [deps]
+Chairmarks = "0ca39b1e-fe0b-4e98-acfc-b1656634c4de"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 OhMyThreads = "67456a42-1dca-4109-a031-0a68de7e3ad5"
@@ -11,14 +12,17 @@ ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 SparseArrayKit = "a9a3c162-d163-4c15-8926-b8794fbefed2"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+StreamSampling = "ff63dad9-3335-55d8-95ec-f8139d39e468"
 StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 
 [compat]
+Chairmarks = "1.2.1"
 DataFrames = "1.6.1"
 ProgressMeter = "1.10.0"
 SparseArrayKit = "0.3.1"
 SparseArrays = "1.11.0"
 StatsBase = "0.34.3"
+StreamSampling = "0.3.5"
 StructArrays = "0.6.18"
 julia = "1.6"
 
