@@ -5,17 +5,14 @@ mutable struct EventHistory{A,T,E<:AbstractRelationalEvent{A,T},V<:AbstractArray
 end
 
 function EventHistory(events::AbstractVector{<:AbstractRelationalEvent{A,T}}) where {A,T}
-    actors = actortype(first(events))[]
+    sort!(events, by=eventtime)
+    actors = Set{A}()
     for e in events
         push!(actors, src(e))
         push!(actors, dst(e))
     end
-    unique!(actors)
-
-    sort!(events, by=eventtime)
-
+    actors = sort!(collect(actors))
     spells = fill(typemin(T):typemax(T), length(actors))
-
     EventHistory(events, actors, spells)
 end
 
@@ -49,20 +46,4 @@ integers, `i` is equal to `actors(h)[i]`.
 """
 isactive(h::EventHistory, i::Integer, t)::Bool = t in spells(h)[i]
 riskset(h::EventHistory, t) = findall(a -> isactive(h, a, t), actors(h))
-
-function before(hist::EventHistory{A,T,E}, t::T) where {A,T,E<:AbstractRelationalEvent{A,T}}
-    i = searchsortedfirst(events(hist), E(time=t); by=eventtime)
-    EventHistory(view(events(hist), firstindex(events(hist), i)), actors(hist), spells(hist))
-end
-
-# function tosparse(hist::EventHistory)
-#     N, M = length(hist), length(actors(hist))
-#     dims = (N, M, M)
-#     data = Dict(map(enumerate(events(hist))) do (i, e)
-#         CartesianIndex(i, sender(e), receiver(e)) => true
-#     end)
-#
-#     SparseArray{Bool,3}(data, dims)
-# end
-
 

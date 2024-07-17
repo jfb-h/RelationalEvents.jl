@@ -1,13 +1,7 @@
 module RelationalEvents
 
-using Dates
-using SparseArrays
-using OhMyThreads: tmap
 using StatsBase: sample
-using ProgressMeter: @showprogress
-using StructArrays: StructArray
 using SparseArrayKit: SparseArray
-using DataFrames
 
 export AbstractRelationalEvent, RelationalEvent, MarkedRelationalEvent
 export src, dst, eventtime, mark
@@ -20,7 +14,6 @@ export EventProcess, Spec, sample_riskset, compute, inertia, reciprocity, update
 
 include("core.jl")
 include("history.jl")
-# include("window-decay.jl")
 include("eventprocess.jl")
 include("statistics.jl")
 
