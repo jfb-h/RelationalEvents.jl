@@ -20,9 +20,9 @@ events(hist::EventHistory) = hist.events
 actors(hist::EventHistory) = hist.actors
 spells(hist::EventHistory) = hist.spells
 
-actortype(::EventHistory{A,T,E,V,R}) where {A,T,E,V,R} = A
-eventtype(::EventHistory{A,T,E,V,R}) where {A,T,E,V,R} = E
-timetype(::EventHistory{A,T,E,V,R}) where {A,T,E,V,R} = T
+eventtype(::EventHistory{A,T,E}) where {A,T,E} = E
+timetype(::EventHistory{A,T}) where {A,T} = T
+actortype(::EventHistory{A}) where {A} = A
 
 # Iteration and indexing interfaces
 
@@ -34,6 +34,42 @@ Base.getindex(hist::EventHistory, i) = getindex(hist.events, i)
 Base.setindex!(hist::EventHistory, v, i) = setindex!(hist.events, v, i)
 Base.firstindex(hist::EventHistory) = Base.firstindex(hist.events)
 Base.lastindex(hist::EventHistory) = Base.lastindex(hist.events)
+
+function Base.show(io::IO, h::EventHistory)
+    compact = get(io, :compact, true)
+    print_history(io, h, compact)
+end
+
+function Base.show(io::IO, ::MIME"text/plain", e::EventHistory)
+    compact = get(io, :compact, false)
+    print_history(io, e, compact)
+end
+
+function _format(x::Integer)
+    str = collect(string(x))
+    out = Char[]
+    n = 1
+    while !isempty(str)
+        push!(out, pop!(str))
+        n % 3 == 0 && !isempty(str) && push!(out, ',')
+        n += 1
+    end
+    String(reverse(out))
+end
+
+function print_history(io, h::EventHistory{A,T,E}, compact) where {A,T,E}
+    nactors = length(actors(h))
+    nevents = length(events(h))
+    if compact
+        print(io, "EventHistory{$A, $T, $E, ...}")
+    else
+        println(io, "EventHistory with $(_format(nevents)) events and $(_format(nactors)) actors")
+        println(io, " event type: $E")
+        println(io, " actor type: $A")
+        println(io, " time  type: $T")
+
+    end
+end
 
 # Choice / risk set querying
 

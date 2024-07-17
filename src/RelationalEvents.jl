@@ -19,14 +19,12 @@ include("statistics.jl")
 
 include("../test/fake-data.jl") # for testing
 
+#TODO: Tests for eventprocesses and statistics
+
+#TODO: Set up docs
+
 #TODO: Further profile allocations
 
 #TODO: Stats macro and process updating logic
-
-#TODO: Tests for eventprocesses and statistics
-
-#TODO: Show methods for RelationalEvent, EventHistory, etc.
-
-#TODO: Set up docs
 
 end # module

@@ -76,12 +76,8 @@ struct EventStats{
     dyads::D
     statnames::N
 
-    # function EventStats{T,I,D,N}(s, i, d, n) where {
-    #     T<:AbstractMatrix{<:Real},
-    #     I<:AbstractVector{<:Integer},
-    #     D<:AbstractVector{<:AbstractRelationalEvent},
-    #     N<:AbstractVector{<:AbstractString}
-    # }
+    # function EventStats(s, i, d, n) #TODO: figure out type parameters
+    #
     #     s1, s2, s3 = size(s, 1), length(i), length(d)
     #
     #     s1 == s2 == s3 || throw(DimensionMismatch(
@@ -138,9 +134,9 @@ function compute(h::EventHistory{S,T,E}, spec::Spec; funcs...) where {S,T,E<:Abs
     EventStats(stats, eidxs, dyads, [string(n) for (n, f) in funcs])
 end
 
-function DataFrames.DataFrame(es::EventStats)
-    df = DataFrame(es.stats, es.statnames)
-    insertcols!(df, 1, :eventid => es.idxs)
-    insertcols!(df, 2, :dyad => es.dyads)
-    df
-end
+# function DataFrames.DataFrame(es::EventStats)
+#     df = DataFrame(es.stats, es.statnames)
+#     insertcols!(df, 1, :eventid => es.idxs)
+#     insertcols!(df, 2, :dyad => es.dyads)
+#     df
+# end
