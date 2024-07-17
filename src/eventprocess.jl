@@ -3,6 +3,7 @@ struct Spec
     N_cases::Int
     halflife::Float32
     tol::Float32
+    startmult::Float32
 end
 
 struct EventProcess{W,E}
@@ -91,6 +92,8 @@ struct EventStats{
 end
 
 function compute(h::EventHistory{S,T,E}, spec::Spec; funcs...) where {S,T,E<:AbstractRelationalEvent}
+    # check dimensions
+    spec.N_events <= length(h) || throw(DimensionMismatch("Cannot sample more events than there are in the history"))
     # initialize event process
     A = length(actors(h))
     N = spec.N_events * (spec.N_cases + 1)
@@ -101,8 +104,8 @@ function compute(h::EventHistory{S,T,E}, spec::Spec; funcs...) where {S,T,E<:Abs
     dyads = Vector{E}(undef, N)
     # sample events for which to compute stats
     t0 = eventtime(first(h))
-    sample_range = findfirst(e -> eventtime(e) > (t0 + 2 * spec.halflife), events(h)):length(h)
-    sampl = Set(sample(sample_range, spec.N_events))
+    sample_range = findfirst(e -> eventtime(e) >= (t0 + spec.startmult * spec.halflife), events(h)):length(h)
+    sampl = Set(sample(sample_range, spec.N_events; replace=false))
     # loop over all events
     evcount = 0
     for (i, e) in enumerate(h)
@@ -116,7 +119,7 @@ function compute(h::EventHistory{S,T,E}, spec::Spec; funcs...) where {S,T,E<:Abs
                 # sample event from riskset, first is always the observed
                 c = rscount == 0 ? e : RelationalEvent(rand(rs), rand(rs), t)
                 # reject loops and duplicates
-                src(c) == dst(c) || c in view(events(h), (idx-rscount):idx) && continue
+                src(c) == dst(c) || c in view(dyads, (idx-rscount):idx) && continue
                 # store event id and sampled event
                 eidxs[idx] = i
                 dyads[idx] = c

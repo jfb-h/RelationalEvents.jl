@@ -1,3 +1,5 @@
+using Dates
+
 generate_eventtimes(N, ::Type{Date}) =
     sort!(rand(Date(2000):Date(2020), N))
 

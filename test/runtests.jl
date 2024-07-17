@@ -1,4 +1,5 @@
 using RelationalEvents
+using Dates
 using Test
 
 const RE = RelationalEvents
@@ -10,19 +11,33 @@ const RE = RelationalEvents
     @test RE.actortype(re) == Int64
     @test RE.timetype(re) == Int64
 
-    @test sender(re) == 1
-    @test receiver(re) == 2
+    @test src(re) == 1
+    @test dst(re) == 2
     @test eventtime(re) == 1
+
+    struct Actor
+        name::String
+    end
+
+    a = Actor("a")
+    b = Actor("b")
+    t = Date(2020)
+    re2 = RelationalEvent(a, b, t)
+
+    @test re2 isa AbstractRelationalEvent{Actor}
+    @test src(re2) isa Actor
+    @test dst(re2) isa Actor
+    @test eventtime(re2) isa Date
 end
 
-es = [(3, 1, 1), (2, 3, 2), (1, 3, 3), (3, 1, 4)]
-es = map(t -> RelationalEvent(t...), es)
-actors = [1, 2, 3]
-spells = [1:5, 1:3, 1:5]
-hist1 = EventHistory(es)
-hist2 = EventHistory(es, actors, spells)
-
 @testset "EventHistory" begin
+    es = [(3, 1, 1), (2, 3, 2), (1, 3, 3), (3, 1, 4)]
+    es = map(t -> RelationalEvent(t...), es)
+    actors = [1, 2, 3]
+    spells = [1:5, 1:3, 1:5]
+    hist1 = EventHistory(es)
+    hist2 = EventHistory(es, actors, spells)
+
     @test typeof(es) <: Vector{<:AbstractRelationalEvent}
     @test hist1 isa EventHistory
     @test hist2 isa EventHistory
@@ -30,25 +45,42 @@ hist2 = EventHistory(es, actors, spells)
     @test length(hist1) == 4
     @test events(hist1) == events(hist2) == es
     @test map(identity, hist1) == es
-    @test sender.(hist1) == sender.(es)
+    @test src.(hist1) == src.(es)
+
+    @test issorted(hist1, by=eventtime)
+    @test issorted(hist2, by=eventtime)
 
     @test hist1[2] == es[2]
+    @test all(e isa AbstractRelationalEvent{Int64} for e in [first(hist1), last(hist1), hist1[1]])
 
-    for e in [first(hist1), last(hist1), hist1[1]]
-        @test e isa AbstractRelationalEvent{Int64}
-    end
-end
-
-@testset "EventHistory - choiceset" begin
-    @test active(hist2, 2, 4) == false
-    @test active(hist2, 1, 4) == true
+    @test isactive(hist2, 2, 4) == false
+    @test isactive(hist2, 1, 4) == true
     @test riskset(hist2, 4) == [1, 3]
 end
 
+
+hist = let
+    es = [(1, 2, 5), (2, 1, 8), (1, 2, 9), (1, 3, 12), (2, 3, 13)]
+    es = map(t -> RelationalEvent(t...), es)
+    EventHistory(es)
+end
+
+@testset "EventProcess" begin
+    events_sampled, cases_sampled = length(hist), 5
+    thalf, thresh, mult = 3, 0.01, 0.0
+    spec = Spec(events_sampled, cases_sampled, thalf, thresh, mult)
+    res = compute(hist, spec)
+    cases = spec.N_cases + 1
+
+    @test issorted(res.dyads; by=eventtime)
+    @test all(res.idxs .== repeat(1:length(hist); inner=cases))
+    @test all(hist[i] == d for (i, d) in enumerate(res.dyads) if i % spec.N_cases + 1 == 0)
+end
+
 @testset "Statistics" begin
-    @test inertia(Window(4), hist1, lastindex(hist1)) == 1
-    # activity(Window(2), hist, e)
-    # inertia(Window(2), hist, e)
-    # reciprocity(Window(2), hist, e)
-    # transitivity(Decay(0.5), hist, e)
+    es = [(1, 2, 5), (2, 1, 8), (1, 2, 9), (1, 3, 12), (2, 3, 13)]
+    es = map(t -> RelationalEvent(t...), es)
+    hist = EventHistory(es)
+
+
 end
