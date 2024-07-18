@@ -1,6 +1,6 @@
 using Documenter, RelationalEvents
 
-# push!(LOAD_PATH, "../src/")
+push!(LOAD_PATH, "../src/")
 
 makedocs(
     sitename="RelationalEvents.jl",
