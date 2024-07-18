@@ -72,7 +72,7 @@ spec = let
 end
 
 @testset "EventProcess" begin
-    res = compute(hist, spec)
+    res = statistics(hist, spec)
     cases = spec.N_cases + 1
 
     @test issorted(res.dyads; by=eventtime)
@@ -81,7 +81,7 @@ end
 end
 
 @testset "Statistics" begin
-    res = compute(hist, spec; inertia, reciprocity)
+    res = statistics(hist, spec; inertia, reciprocity)
 
     @test res.stats[findfirst(==(3), res.idxs), 1] ≈ 0.39685
     @test res.stats[findfirst(==(6), res.idxs), 1] ≈ 0.43998
