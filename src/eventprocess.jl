@@ -28,8 +28,6 @@ end
 
 Update weights and time-of-last-update of `EventProcess` `p` for the
 dyad and event time given by `e` and the specification `spec`.
-
-See also [`update_weights!`](@ref), [`update_wutimes!`](@ref)
 """
 function update_process!(p::EventProcess, e, spec::Spec)
     update_weights!(p, e, spec)
