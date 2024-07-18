@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
         with:
-          version: '1.11'
+          version: '1.11.0-rc1'
           include-all-prereleases: true
       - uses: julia-actions/cache@v1
       - name: Install dependencies
