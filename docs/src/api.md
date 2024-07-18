@@ -24,11 +24,11 @@ inertia
 ## Internals
 
 ```@docs
-EventProcess
+RelationalEvents.EventProcess
 ```
 ```@docs
-sample_riskset
+RelationalEvents.sample_riskset
 ```
 ```@docs
-update_process!
+RelationalEvents.update_process!
 ```
