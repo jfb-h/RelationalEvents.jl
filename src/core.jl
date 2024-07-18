@@ -28,7 +28,7 @@ Sender and receiver are required to be of the same type.
 
 # Examples
 
-```jldoctest
+```julia
 julia> sender = 2;
 
 julia> receiver = 4;
