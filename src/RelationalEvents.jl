@@ -10,6 +10,7 @@ export EventHistory
 export events, actors
 export isactive, riskset
 
+export Spec
 export statistics
 export inertia, reciprocity
 
