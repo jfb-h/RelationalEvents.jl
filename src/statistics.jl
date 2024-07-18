@@ -1,4 +1,9 @@
 
+"""
+    inertia(e, p, h, spec)
+
+Compute the inertia statistic for event `e`, using the `EventProcess` `p` as specified by `spec`.
+"""
 function inertia(e::AbstractRelationalEvent, p::EventProcess, h::EventHistory, spec::Spec)
     update_process!(p, e, spec)
     p.weights[src(e), dst(e)]

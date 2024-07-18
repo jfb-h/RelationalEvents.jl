@@ -1,3 +1,10 @@
+"""
+    EventHistory(events, actors, spells)
+    EventHistory(events)
+
+Type representing a relational event history. This holds a sorted list of events and
+the actors that appear throughout the observation period, as well as their activity spells.
+"""
 mutable struct EventHistory{A,T,E<:AbstractRelationalEvent{A,T},V<:AbstractArray{E},R<:AbstractRange{T}}
     events::V
     actors::Vector{A}
@@ -67,7 +74,6 @@ function print_history(io, h::EventHistory{A,T,E}, compact) where {A,T,E}
         println(io, " event type: $E")
         println(io, " actor type: $A")
         println(io, " time  type: $T")
-
     end
 end
 

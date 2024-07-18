@@ -13,12 +13,24 @@ struct EventProcess{W,E}
     wutimes::SparseArray{E,2}
 end
 
+"""
+EventProcess struct holding sparse arrays with weights and weight update times.
+This is updated iterativeley as statistics are computed.
+"""
 function EventProcess{W,E}(N) where {W,E}
     weights = SparseArray{W,2}(undef, (N, N))
     wutimes = SparseArray{E,2}(undef, (N, N))
     EventProcess{W,E}(weights, wutimes)
 end
 
+"""
+    update_process!(p, e, spec)
+
+Update weights and time-of-last-update of `EventProcess` `p` for the
+dyad and event time given by `e` and the specification `spec`.
+
+See also [`update_weights!`](@ref), [`update_wutimes!`](@ref)
+"""
 function update_process!(p::EventProcess, e, spec::Spec)
     update_weights!(p, e, spec)
     update_wutimes!(p, e)
@@ -43,6 +55,12 @@ function add_event!(p::EventProcess, e, spec::Spec)
     p.weights[src(e), dst(e)] += one(eltype(p.weights))
 end
 
+"""
+    sample_riskset(h, t, spec)
+
+Sample a set of `spec.N_cases` control events from the riskset, i.e.,
+all possible dyads of actors active at time `t`.
+"""
 function sample_riskset(h::EventHistory{A,T}, t::T, spec::Spec) where {A,T}
     rs = riskset(h, t)
     nt = length(rs)
@@ -76,6 +94,8 @@ struct EventStats{
     idxs::I
     dyads::D
     statnames::N
+    N_events::Int
+    N_actors::Int
 
     # function EventStats(s, i, d, n) #TODO: figure out type parameters
     #
@@ -91,7 +111,59 @@ struct EventStats{
     # end
 end
 
-function compute(h::EventHistory{S,T,E}, spec::Spec; funcs...) where {S,T,E<:AbstractRelationalEvent}
+
+function Base.show(io::IO, h::EventStats)
+    compact = get(io, :compact, true)
+    print_history(io, h, compact)
+end
+
+function Base.show(io::IO, ::MIME"text/plain", e::EventStats)
+    compact = get(io, :compact, false)
+    print_history(io, e, compact)
+end
+
+function print_history(io, h::EventStats, compact)
+    N_sampled = length(unique(h.idxs))
+    N_cases = findfirst(!=(first(h.idxs)), h.idxs) - 1
+    if compact
+        print(io, "EventStats ($(join(h.statnames, ", ")))")
+    else
+        println(io, "EventStats ($(join(h.statnames, ", ")))")
+        print(io, " sampled events: $(_format(N_sampled)) out of ")
+        println(io, "$(_format(h.N_events)) ($(Int(round(N_sampled / h.N_events * 100, digits=0)))%)")
+        println(io, " sampled cases:  $(_format(N_cases)) with $(_format(h.N_actors)) nodes")
+    end
+end
+
+"""
+    statistics(h, spec; statfuns...)
+
+Compute the statistics provided as keyword arguments for the event history `h`
+according to the specification in `spec`. Statistics are only computed for 
+a sample of the specified sizes of events and control cases. Returns an `EventStats` object.
+
+# Arguments
+
+- `h::EventHistory`: The event history for which to compute statistics.
+- `spec::Spec`: The specification for sampling, decay, etc.
+- `statfuns::Function...`: Functions to compute event history statistics.
+
+# Examples
+
+```julia
+hist = ... # EventHistory
+spec = Spec(
+    50,   # number of events to sample
+    10,   # number of control cases to sample
+    30,   # halflife time (e.g., days)
+    0.01, # threshold at which to set dyads to zero
+    2     # halflife multiplier after which to start sampling
+)
+
+res = statistics(hist, spec; inertia, reciprocity)
+```
+"""
+function statistics(h::EventHistory{S,T,E}, spec::Spec; funcs...) where {S,T,E<:AbstractRelationalEvent}
     # check dimensions
     spec.N_events <= length(h) || throw(DimensionMismatch("Cannot sample more events than there are in the history"))
     # initialize event process
@@ -134,12 +206,7 @@ function compute(h::EventHistory{S,T,E}, spec::Spec; funcs...) where {S,T,E<:Abs
         # update process for every event, even if not sampled
         add_event!(p, e, spec)
     end
-    EventStats(stats, eidxs, dyads, [string(n) for (n, f) in funcs])
+    statnames = [string(n) for (n, _) in funcs]
+    EventStats(stats, eidxs, dyads, statnames, length(h), length(actors(h)))
 end
 
-# function DataFrames.DataFrame(es::EventStats)
-#     df = DataFrame(es.stats, es.statnames)
-#     insertcols!(df, 1, :eventid => es.idxs)
-#     insertcols!(df, 2, :dyad => es.dyads)
-#     df
-# end

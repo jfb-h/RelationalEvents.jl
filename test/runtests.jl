@@ -60,15 +60,18 @@ end
 
 
 hist = let
-    es = [(1, 2, 5), (2, 1, 8), (1, 2, 9), (1, 3, 12), (2, 3, 13)]
+    es = [(1, 2, 5), (2, 1, 8), (1, 2, 9), (1, 3, 12), (2, 3, 13), (1, 2, 14)]
     es = map(t -> RelationalEvent(t...), es)
     EventHistory(es)
 end
 
-@testset "EventProcess" begin
+spec = let
     events_sampled, cases_sampled = length(hist), 5
     thalf, thresh, mult = 3, 0.01, 0.0
-    spec = Spec(events_sampled, cases_sampled, thalf, thresh, mult)
+    Spec(events_sampled, cases_sampled, thalf, thresh, mult)
+end
+
+@testset "EventProcess" begin
     res = compute(hist, spec)
     cases = spec.N_cases + 1
 
@@ -78,9 +81,12 @@ end
 end
 
 @testset "Statistics" begin
-    es = [(1, 2, 5), (2, 1, 8), (1, 2, 9), (1, 3, 12), (2, 3, 13)]
-    es = map(t -> RelationalEvent(t...), es)
-    hist = EventHistory(es)
+    res = compute(hist, spec; inertia, reciprocity)
 
+    @test res.stats[findfirst(==(3), res.idxs), 1] ≈ 0.39685
+    @test res.stats[findfirst(==(6), res.idxs), 1] ≈ 0.43998
 
+    @test res.stats[findfirst(==(2), res.idxs), 2] ≈ 0.5
+    @test res.stats[findfirst(==(3), res.idxs), 2] ≈ 0.79370
+    @test res.stats[findfirst(==(6), res.idxs), 2] ≈ 0.25
 end

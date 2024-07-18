@@ -17,6 +17,31 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractRelationalEvent)
     print_event(io, e, compact)
 end
 
+
+"""
+    RelationalEvent(sender, receiver, time)
+
+Type to represent a basic unmarked relational event containing the
+sender, the receiver, and the timestamp of the event.
+
+Sender and receiver are required to be of the same type.
+
+# Examples
+
+```jldoctest
+julia> sender = 2;
+
+julia> receiver = 4;
+
+julia> time = 1.0;
+
+julia> RelationalEvent(sender, receiver, time)
+RelationalEvent{Int64, Float64}
+ sender: 2
+ receiver: 4
+ time: 1.0
+```
+"""
 struct RelationalEvent{A,T} <: AbstractRelationalEvent{A,T}
     src::A
     dst::A

@@ -10,7 +10,8 @@ export EventHistory
 export events, actors
 export isactive, riskset
 
-export EventProcess, Spec, sample_riskset, compute, inertia, reciprocity, update_weights!, generate
+export statistics
+export inertia, reciprocity
 
 include("core.jl")
 include("history.jl")
@@ -19,12 +20,16 @@ include("statistics.jl")
 
 include("../test/fake-data.jl") # for testing
 
-#TODO: Tests for eventprocesses and statistics
-
 #TODO: Set up docs
 
-#TODO: Further profile allocations
+#TODO: improve MarkedRelationalEvent support
+
+#TODO: Makie plotting recipies
 
 #TODO: Stats macro and process updating logic
+
+#TODO: Add further standard statistics
+
+#TODO: Further profile allocations
 
 end # module
