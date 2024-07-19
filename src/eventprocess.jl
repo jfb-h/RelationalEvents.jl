@@ -1,11 +1,25 @@
-struct Spec
+"""
+Struct containing the specification for the computation of event statistics.
+
+# Fields
+- `N_events::Int`             # number of events to sample
+- `N_cases::Int`              # number of control cases to sample
+- `halflife::Float32`         # halflife time for exponential decay
+- `tol::Float32 = 0.01`       # tolerance at which to set weights to zero
+- `startmult::Float32 = 2.0`  # halflife multiplier after which to start sampling
+"""
+@kwdef struct Spec
     N_events::Int
     N_cases::Int
     halflife::Float32
-    tol::Float32
-    startmult::Float32
+    tol::Float32 = 0.01
+    startmult::Float32 = 2.0
 end
 
+"""
+Struct holding sparse arrays with weights and weight update times.
+This is updated iterativeley as statistics are computed.
+"""
 struct EventProcess{W,E}
     # Sparse Array with weights for all pairs
     weights::SparseArray{W,2}
@@ -13,10 +27,6 @@ struct EventProcess{W,E}
     wutimes::SparseArray{E,2}
 end
 
-"""
-EventProcess struct holding sparse arrays with weights and weight update times.
-This is updated iterativeley as statistics are computed.
-"""
 function EventProcess{W,E}(N) where {W,E}
     weights = SparseArray{W,2}(undef, (N, N))
     wutimes = SparseArray{E,2}(undef, (N, N))
@@ -35,11 +45,23 @@ function update_process!(p::EventProcess, e, spec::Spec)
     p
 end
 
+"""
+    update_wutimes!(p, e)
+
+Set the time of the last weight update in `EventProcess` `p` to `eventtime(e)`.
+"""
 function update_wutimes!(p::EventProcess, e)
     s, d, t = src(e), dst(e), eventtime(e)
     p.wutimes[s, d] = t
 end
 
+"""
+    update_weights!(p, e, spec)
+
+Apply exponential decay to the weight of the dyad given by `e` based on the 
+halflife time specified by `spec`. If the weight is below given tolerance `spec.tol`,
+the weight will be set to zero for reasons of memory efficiency.
+"""
 function update_weights!(p::EventProcess, e, spec::Spec)
     s, d, t = src(e), dst(e), eventtime(e)
     t_prev = p.wutimes[s, d]
@@ -48,6 +70,11 @@ function update_weights!(p::EventProcess, e, spec::Spec)
     p.weights[s, d]
 end
 
+"""
+    add_event!(p, e, spec)
+
+Update `EventProcess` `p` according to specification `spec` for the occurred event `e`.
+"""
 function add_event!(p::EventProcess, e, spec::Spec)
     update_process!(p, e, spec)
     p.weights[src(e), dst(e)] += one(eltype(p.weights))
@@ -82,6 +109,10 @@ end
 #     itsample(rs, spec.N_cases)
 # end
 
+"""
+Struct containing statistics about a sampled event history and control cases, 
+to be used for fitting a relational event model.
+"""
 struct EventStats{
     T<:AbstractMatrix{<:Real},
     I<:AbstractVector{<:Integer},

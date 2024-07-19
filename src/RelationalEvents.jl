@@ -21,8 +21,6 @@ include("statistics.jl")
 
 include("../test/fake-data.jl") # for testing
 
-#TODO: Set up docs
-
 #TODO: improve MarkedRelationalEvent support
 
 #TODO: Makie plotting recipies

@@ -7,7 +7,15 @@ RelationalEvent
 ```
 
 ```@docs
+MarkedRelationalEvent
+```
+
+```@docs
 EventHistory
+```
+
+```@docs
+Spec
 ```
 
 ```@docs
@@ -21,14 +29,36 @@ isactive
 inertia
 ```
 
+```@docs
+reciprocity
+```
+
 ## Internals
+
+```@docs
+RelationalEvents.EventStats
+```
 
 ```@docs
 RelationalEvents.EventProcess
 ```
+
 ```@docs
 RelationalEvents.sample_riskset
 ```
+
 ```@docs
 RelationalEvents.update_process!
+```
+
+```@docs
+RelationalEvents.update_weights!
+```
+
+```@docs
+RelationalEvents.update_wutimes!
+```
+
+```@docs
+RelationalEvents.add_event!
 ```

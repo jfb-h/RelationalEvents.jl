@@ -59,6 +59,33 @@ function print_event(io, e::RelationalEvent, compact)
     end
 end
 
+"""
+    MarkedRelationalEvent(sender, receiver, time, mark)
+
+Type to represent a marked relational event containing the
+sender, the receiver, the timestamp, and the mark of the event.
+
+Sender and receiver are required to be of the same type.
+
+# Examples
+
+```julia
+julia> sender = 2;
+
+julia> receiver = 4;
+
+julia> time = 1.0;
+
+julia> type = "x";
+
+julia> MarkedRelationalEvent(sender, receiver, time, type)
+MarkedRelationalEvent{Int64, Float64, String}
+ sender: 2
+ receiver: 4
+ time: 1.0
+ mark: x
+```
+"""
 struct MarkedRelationalEvent{A,T,M} <: AbstractRelationalEvent{A,T}
     src::A
     dst::A
