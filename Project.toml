@@ -4,10 +4,14 @@ authors = ["Jakob Hoffmann <jfb-hoffmann@hotmail.de> and contributors"]
 version = "1.0.0-DEV"
 
 [deps]
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 SparseArrayKit = "a9a3c162-d163-4c15-8926-b8794fbefed2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+
+[weakdeps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+
+[extensions]
+RelationalEventsDataFramesExt = "DataFrames"
 
 [compat]
 DataFrames = "1.6.1"

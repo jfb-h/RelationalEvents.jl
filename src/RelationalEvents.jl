@@ -19,9 +19,9 @@ include("history.jl")
 include("eventprocess.jl")
 include("statistics.jl")
 
-include("../test/fake-data.jl") # for testing
+# include("../test/fake-data.jl") # for testing
 
-#TODO: package extensions for plotting and DataFrames
+#TODO: Allow all actor types
 
 #TODO: improve MarkedRelationalEvent support
 

@@ -1,22 +1,26 @@
 """
+    Spec{T}
+
 Struct containing the specification for the computation of event statistics.
 
 # Fields
 - `N_events::Int`             # number of events to sample
 - `N_cases::Int`              # number of control cases to sample
-- `halflife::Float32`         # halflife time for exponential decay
-- `tol::Float32 = 0.01`       # tolerance at which to set weights to zero
-- `startmult::Float32 = 2.0`  # halflife multiplier after which to start sampling
+- `halflife::T`         # halflife time for exponential decay
+- `tol::Float64 = 0.01`       # tolerance at which to set weights to zero
+- `startmult::Float64 = 2.0`  # halflife multiplier after which to start sampling
 """
-@kwdef struct Spec
+@kwdef struct Spec{T}
     N_events::Int
     N_cases::Int
-    halflife::Float32
-    tol::Float32 = 0.01
-    startmult::Float32 = 2.0
+    halflife::T
+    tol::Float64 = 0.01
+    startmult::Float64 = 2.0
 end
 
 """
+    EventProcess{W,E}
+
 Struct holding sparse arrays with weights and weight update times.
 This is updated iterativeley as statistics are computed.
 """
@@ -65,7 +69,7 @@ the weight will be set to zero for reasons of memory efficiency.
 function update_weights!(p::EventProcess, e, spec::Spec)
     s, d, t = src(e), dst(e), eventtime(e)
     t_prev = p.wutimes[s, d]
-    p.weights[s, d] = exp(-(t - t_prev) * log(2) / spec.halflife) * p.weights[s, d]
+    p.weights[s, d] = exp(-(t - t_prev) / spec.halflife * log(2)) * p.weights[s, d]
     p.weights[s, d] < spec.tol && delete!(p.weights.data, CartesianIndex(s, d))
     p.weights[s, d]
 end
@@ -86,17 +90,17 @@ end
 Sample a set of `spec.N_cases` control events from the riskset, i.e.,
 all possible dyads of actors active at time `t`.
 """
-function sample_riskset(h::EventHistory{A,T}, t::T, spec::Spec) where {A,T}
+function sample_riskset(h::EventHistory{A,T,E}, t::T, spec::Spec) where {A,T,E<:AbstractRelationalEvent}
     rs = riskset(h, t)
     nt = length(rs)
     spec.N_cases <= nt * (nt - 1) || error("Can't sample more than N * (N-1) cases")
-    out = Vector{eventtype(h)}()
+    out = Vector{E}()
     sizehint!(out, spec.N_cases)
     while length(out) < spec.N_cases
         s, d = rand(rs), rand(rs)
         s == d && continue
         (s, d) in out && continue
-        push!(out, RelationalEvent(s, d, t))
+        push!(out, E(s, d, t)) #TODO: handle marks
     end
     out
 end

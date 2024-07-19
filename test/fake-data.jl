@@ -1,5 +1,4 @@
 using Dates
-using DataFrames
 
 generate_eventtimes(N, ::Type{Date}) =
     sort!(rand(Date(2000):Date(2020), N))
@@ -28,9 +27,3 @@ function generate(N, M; actortype=Int, datetype=Int, daterange=1:100_000)
     EventHistory(events)
 end
 
-function DataFrames.DataFrame(es::EventStats)
-    df = DataFrame(es.stats, es.statnames)
-    insertcols!(df, 1, :id => es.idxs)
-    insertcols!(df, 2, :event => es.dyads)
-    df
-end
