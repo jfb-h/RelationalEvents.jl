@@ -21,6 +21,8 @@ include("statistics.jl")
 
 include("../test/fake-data.jl") # for testing
 
+#TODO: package extensions for plotting and DataFrames
+
 #TODO: improve MarkedRelationalEvent support
 
 #TODO: Makie plotting recipies
