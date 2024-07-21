@@ -1,5 +1,5 @@
 """
-    Spec{T}
+    Spec{T,S}
 
 Struct containing the specification for the computation of event statistics.
 
@@ -10,12 +10,13 @@ Struct containing the specification for the computation of event statistics.
 - `tol::Float64 = 0.01`       # tolerance at which to set weights to zero
 - `startmult::Float64 = 2.0`  # halflife multiplier after which to start sampling
 """
-@kwdef struct Spec{T}
+@kwdef struct Spec{T,S}
     N_events::Int
     N_cases::Int
     halflife::T
     tol::Float64 = 0.01
     startmult::Float64 = 2.0
+    starttime::S
 end
 
 """
@@ -30,7 +31,6 @@ struct EventProcess{W,E}
     # Sparse Array holding the last time a weight was updated
     wutimes::SparseArray{E,2}
 end
-
 function EventProcess{W,E}(N) where {W,E}
     weights = SparseArray{W,2}(undef, (N, N))
     wutimes = SparseArray{E,2}(undef, (N, N))
@@ -45,7 +45,7 @@ dyad and event time given by `e` and the specification `spec`.
 """
 function update_process!(p::EventProcess, e, spec::Spec)
     update_weights!(p, e, spec)
-    update_wutimes!(p, e)
+    update_wutimes!(p, e, spec)
     p
 end
 
@@ -54,9 +54,9 @@ end
 
 Set the time of the last weight update in `EventProcess` `p` to `eventtime(e)`.
 """
-function update_wutimes!(p::EventProcess, e)
-    s, d, t = src(e), dst(e), eventtime(e)
-    p.wutimes[s, d] = t
+function update_wutimes!(p::EventProcess, e, spec::Spec)
+    s, d, t = isrc(e), idst(e), eventtime(e)
+    p.wutimes[s, d] = t - spec.starttime
 end
 
 """
@@ -67,7 +67,7 @@ halflife time specified by `spec`. If the weight is below given tolerance `spec.
 the weight will be set to zero for reasons of memory efficiency.
 """
 function update_weights!(p::EventProcess, e, spec::Spec)
-    s, d, t = src(e), dst(e), eventtime(e)
+    s, d, t = isrc(e), idst(e), eventtime(e) - spec.starttime
     t_prev = p.wutimes[s, d]
     p.weights[s, d] = exp(-(t - t_prev) / spec.halflife * log(2)) * p.weights[s, d]
     p.weights[s, d] < spec.tol && delete!(p.weights.data, CartesianIndex(s, d))
@@ -81,19 +81,19 @@ Update `EventProcess` `p` according to specification `spec` for the occurred eve
 """
 function add_event!(p::EventProcess, e, spec::Spec)
     update_process!(p, e, spec)
-    p.weights[src(e), dst(e)] += one(eltype(p.weights))
+    p.weights[isrc(e), idst(e)] += one(eltype(p.weights))
 end
 
 """
     sample_riskset(h, t, spec)
 
 Sample a set of `spec.N_cases` control events from the riskset, i.e.,
-all possible dyads of actors active at time `t`.
+all possible dyads of nodes active at time `t`.
 """
 function sample_riskset(h::EventHistory{A,T,E}, t::T, spec::Spec) where {A,T,E<:AbstractRelationalEvent}
     rs = riskset(h, t)
     nt = length(rs)
-    spec.N_cases <= nt * (nt - 1) || error("Can't sample more than N * (N-1) cases")
+    spec.N_cases <= nt * (nt - 1) || error("Can't sample more than N(N-1) cases")
     out = Vector{E}()
     sizehint!(out, spec.N_cases)
     while length(out) < spec.N_cases
@@ -105,13 +105,38 @@ function sample_riskset(h::EventHistory{A,T,E}, t::T, spec::Spec) where {A,T,E<:
     out
 end
 
-# function sample_riskset(h::EventHistory, t, spec::Spec)
+# function sample_riskset_itr(h::EventHistory, t, spec::Spec)
 #     # more elegant but sadly slower. Maybe transducers?
-#     rs = Iterators.filter(a -> isactive(h, a, t), actors(h))
+#     rs = Iterators.filter(a -> isactive(h, a, t), nodes(h))
 #     rs = Iterators.product(rs, rs)
 #     rs = Iterators.filter(t -> t[1] != t[2], rs)
 #     itsample(rs, spec.N_cases)
 # end
+
+# function sample_active(hist::EventHistory{A,T}, t::T) where {A,T}
+#     c = 0
+#     ns = nodes(hist)
+#     out = first(ns)
+#     for n in ns
+#         if isactive(hist, n, t)
+#             c += 1
+#             if rand() < 1 / c
+#                 out = n
+#             end
+#         end
+#     end
+#     out
+# end
+
+function sample_active(active, nactive)
+    target = rand(1:nactive)
+    current_count = 0
+    for i in eachindex(active)
+        active[i] || continue
+        current_count += 1
+        current_count == target && return i
+    end
+end
 
 """
 Struct containing statistics about a sampled event history and control cases, 
@@ -128,7 +153,7 @@ struct EventStats{
     dyads::D
     statnames::N
     N_events::Int
-    N_actors::Int
+    N_nodes::Int
 
     # function EventStats(s, i, d, n) #TODO: figure out type parameters
     #
@@ -164,7 +189,30 @@ function print_history(io, h::EventStats, compact)
         println(io, "EventStats ($(join(h.statnames, ", ")))")
         print(io, " sampled events: $(_format(N_sampled)) out of ")
         println(io, "$(_format(h.N_events)) ($(Int(round(N_sampled / h.N_events * 100, digits=0)))%)")
-        println(io, " sampled cases:  $(_format(N_cases)) with $(_format(h.N_actors)) nodes")
+        println(io, " sampled cases:  $(_format(N_cases)) with $(_format(h.N_nodes)) nodes")
+    end
+end
+
+function init_process(h::EventHistory, spec::Spec)
+    A = length(nodes(h))
+    EventProcess{Float32,U}(A)
+end
+
+function sample_events(h::EventHistory, spec::Spec)
+    t0 = eventtime(first(h))
+    sample_range = findfirst(e -> eventtime(e) >= (t0 + spec.startmult * spec.halflife), events(h)):length(h)
+    Set(sample(sample_range, spec.N_events; replace=false))
+end
+
+function sample_cases(h::EventHistory, events, spec::Spec)
+    map(@views events[events]) do e
+        t = eventtime(e)
+        active = [t >= first(s) && t <= last(s) for s in spells(h)]
+        nactive = sum(active)
+        map(1:spec.N_cases) do _
+            s, d = sample_active(active, nactive), sample_active(active, nactive)
+            s, d = nodes(h)[s], nodes(h)[d]
+        end
     end
 end
 
@@ -196,38 +244,42 @@ spec = Spec(
 res = statistics(hist, spec; inertia, reciprocity)
 ```
 """
-function statistics(h::EventHistory{S,T,E}, spec::Spec; funcs...) where {S,T,E<:AbstractRelationalEvent}
+function statistics(h::EventHistory{S,T,E}, spec::Spec{U,T}; funcs...) where {S,T,E<:AbstractRelationalEvent,U}
     # check dimensions
     spec.N_events <= length(h) || throw(DimensionMismatch("Cannot sample more events than there are in the history"))
     # initialize event process
-    A = length(actors(h))
-    N = spec.N_events * (spec.N_cases + 1)
-    p = EventProcess{Float32,Int32}(A)
+    p = init_process(h, spec)
     # allocate result objects
     stats = zeros(Float32, N, length(funcs))
     eidxs = zeros(Int32, N)
-    dyads = Vector{E}(undef, N)
+    dyads = E[]
+    # sizehint!(E, N)
     # sample events for which to compute stats
-    t0 = eventtime(first(h))
-    sample_range = findfirst(e -> eventtime(e) >= (t0 + spec.startmult * spec.halflife), events(h)):length(h)
-    sampl = Set(sample(sample_range, spec.N_events; replace=false))
+    sampl = sample_events(h, spec)
     # loop over all events
     evcount = 0
     for (i, e) in enumerate(h)
         t = eventtime(e)
         # only compute stats for sampled events
         if i in sampl
-            rs = riskset(h, t)
+            active = [t >= first(s) && t <= last(s) for s in spells(h)]
+            nactive = sum(active)
             rscount = 0
             while rscount < spec.N_cases + 1
                 idx = evcount * (spec.N_cases + 1) + rscount + 1
                 # sample event from riskset, first is always the observed
-                c = rscount == 0 ? e : RelationalEvent(rand(rs), rand(rs), t)
+                # s, d = sample_active(active, nactive), sample_active(active, nactive)
+                # s, d = nodes(h)[s], nodes(h)[d]
+                s, d = rand(nodes(h)), rand(nodes(h))
+                c = rscount == 0 ? e : RelationalEvent(s, d, t)
                 # reject loops and duplicates
-                src(c) == dst(c) || c in view(dyads, (idx-rscount):idx) && continue
+                isrc(c) == idst(c) && continue
+                if !isempty(dyads)
+                    c in view(dyads, (idx-rscount):(idx-1)) && continue
+                end
                 # store event id and sampled event
                 eidxs[idx] = i
-                dyads[idx] = c
+                push!(dyads, c)
                 # compute and store stats for all stats funs, update process
                 for (j, (_, f)) in enumerate(pairs(funcs))
                     @views stats[idx, j] = f(c, p, h, spec)
@@ -240,6 +292,6 @@ function statistics(h::EventHistory{S,T,E}, spec::Spec; funcs...) where {S,T,E<:
         add_event!(p, e, spec)
     end
     statnames = [string(n) for (n, _) in funcs]
-    EventStats(stats, eidxs, dyads, statnames, length(h), length(actors(h)))
+    EventStats(stats, eidxs, dyads, statnames, length(h), length(nodes(h)))
 end
 

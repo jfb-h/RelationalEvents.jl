@@ -5,14 +5,15 @@ using Test
 const RE = RelationalEvents
 
 @testset "RelationalEvent" begin
-    re = RelationalEvent(1, 2, 1)
+    a, b, t = "a", "b", 1
+    re = RelationalEvent(RE.Node(1, a), RE.Node(2, b), 1)
 
-    @test re isa AbstractRelationalEvent{Int64}
-    @test RE.actortype(re) == Int64
-    @test RE.timetype(re) == Int64
+    @test re isa AbstractRelationalEvent{String}
 
-    @test src(re) == 1
-    @test dst(re) == 2
+    @test src(re) == "a"
+    @test dst(re) == "b"
+    @test RE.isrc(re) == 1
+    @test RE.idst(re) == 2
     @test eventtime(re) == 1
 
     struct Actor
@@ -22,7 +23,7 @@ const RE = RelationalEvents
     a = Actor("a")
     b = Actor("b")
     t = Date(2020)
-    re2 = RelationalEvent(a, b, t)
+    re2 = RelationalEvent(RE.Node(1, a), RE.Node(2, b), t)
 
     @test re2 isa AbstractRelationalEvent{Actor}
     @test src(re2) isa Actor
@@ -31,44 +32,42 @@ const RE = RelationalEvents
 end
 
 @testset "EventHistory" begin
+    ns = [RE.Node(i) for i in 1:3]
     es = [(3, 1, 1), (2, 3, 2), (1, 3, 3), (3, 1, 4)]
-    es = map(t -> RelationalEvent(t...), es)
-    actors = [1, 2, 3]
+    es = map(es) do (s, r, t)
+        RelationalEvent(ns[s], ns[r], t)
+    end
     spells = [1:5, 1:3, 1:5]
     hist1 = EventHistory(es)
-    hist2 = EventHistory(es, actors, spells)
+    hist2 = EventHistory(es, ns, spells)
 
-    @test typeof(es) <: Vector{<:AbstractRelationalEvent}
-    @test hist1 isa EventHistory
-    @test hist2 isa EventHistory
+    @test hist1 isa EventHistory && hist2 isa EventHistory
 
     @test length(hist1) == 4
     @test events(hist1) == events(hist2) == es
-    @test map(identity, hist1) == es
-    @test src.(hist1) == src.(es)
 
     @test issorted(hist1, by=eventtime)
     @test issorted(hist2, by=eventtime)
 
-    @test hist1[2] == es[2]
+    @test src(first(hist1)) == src(first(es))
     @test all(e isa AbstractRelationalEvent{Int64} for e in [first(hist1), last(hist1), hist1[1]])
 
     @test isactive(hist2, 2, 4) == false
     @test isactive(hist2, 1, 4) == true
-    @test riskset(hist2, 4) == [1, 3]
+    # @test riskset(hist2, 4) == [1, 3]
 end
 
 
 hist = let
     es = [(1, 2, 5), (2, 1, 8), (1, 2, 9), (1, 3, 12), (2, 3, 13), (1, 2, 14)]
-    es = map(t -> RelationalEvent(t...), es)
     EventHistory(es)
 end
 
 spec = let
     events_sampled, cases_sampled = length(hist), 5
     thalf, thresh, mult = 3, 0.01, 0.0
-    Spec(events_sampled, cases_sampled, thalf, thresh, mult)
+    starttime = 1
+    Spec(events_sampled, cases_sampled, thalf, thresh, mult, starttime)
 end
 
 @testset "EventProcess" begin

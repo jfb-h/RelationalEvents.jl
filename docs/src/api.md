@@ -44,6 +44,10 @@ RelationalEvents.EventProcess
 ```
 
 ```@docs
+RelationalEvents.Node
+```
+
+```@docs
 RelationalEvents.sample_riskset
 ```
 

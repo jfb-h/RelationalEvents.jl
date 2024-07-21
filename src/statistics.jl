@@ -6,7 +6,7 @@ Compute the inertia statistic for event `e`, using the `EventProcess` `p` and sp
 """
 function inertia(e::AbstractRelationalEvent, p::EventProcess, h::EventHistory, spec::Spec)
     update_process!(p, e, spec)
-    p.weights[src(e), dst(e)]
+    p.weights[isrc(e), idst(e)]
 end
 
 """
@@ -15,7 +15,7 @@ end
 Compute the reciprocity statistic for event `e`, using the `EventProcess` `p` and specification `spec`.
 """
 function reciprocity(e::AbstractRelationalEvent, p::EventProcess, h::EventHistory, spec::Spec)
-    c = RelationalEvent(dst(e), src(e), eventtime(e))
+    c = RelationalEvent(e.dst, e.src, eventtime(e))
     update_process!(p, c, spec)
-    p.weights[dst(e), src(e)]
+    p.weights[idst(e), isrc(e)]
 end

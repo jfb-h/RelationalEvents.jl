@@ -1,30 +1,53 @@
 """
-    EventHistory(events, actors, spells)
+    EventHistory(events, nodes, spells)
     EventHistory(events)
 
 Type representing a relational event history. This holds a sorted list of events and
-the actors that appear throughout the observation period, as well as their activity spells.
+the nodes that appear throughout the observation period, as well as their activity spells.
 """
-mutable struct EventHistory{A,T,E<:AbstractRelationalEvent{A,T},V<:AbstractArray{E},R<:AbstractRange{T}}
-    events::V
-    actors::Vector{A}
+mutable struct EventHistory{A,T,E<:AbstractRelationalEvent{A,T},R<:AbstractRange{T}}
+    events::Vector{E}
+    nodes::Vector{Node{A}}
     spells::Vector{R}
+
+    function EventHistory(events::Vector{E}, nodes::Vector{Node{A}}, spells::Vector{R}) where {A,T,E<:AbstractRelationalEvent{A,T},R<:AbstractRange{T}}
+        all(a.idx == i for (i, a) in enumerate(nodes)) || error("Node indexes need to be contiguous.")
+        new{A,T,E,R}(events, nodes, spells)
+    end
 end
 
+# EventHistory(events, nodes, spells) = EventHistory(events, nodes, spells)
+
 function EventHistory(events::AbstractVector{<:AbstractRelationalEvent{A,T}}) where {A,T}
-    sort!(events, by=eventtime)
-    actors = Set{A}()
+    # events = sort(events, by=eventtime)
+    nodes = Set{Node{A}}()
     for e in events
-        push!(actors, src(e))
-        push!(actors, dst(e))
+        push!(nodes, e.src)
+        push!(nodes, e.dst)
     end
-    actors = sort!(collect(actors))
-    spells = fill(typemin(T):typemax(T), length(actors))
-    EventHistory(events, actors, spells)
+    nodes = sort!(collect(nodes); by=t -> t.idx)
+    spells = fill(typemin(T):typemax(T), length(nodes))
+    EventHistory(events, nodes, spells)
+end
+
+function EventHistory(events::AbstractVector{Tuple{A,A,T}}) where {A,T}
+    ns = Dict{A,Node{A}}()
+    i = 1
+    es = map(events) do (s, r, t)
+        for a in (s, r)
+            haskey(ns, a) && continue
+            push!(ns, a => Node(Int32(i), a))
+            i += 1
+        end
+        RelationalEvent(ns[s], ns[r], t)
+    end
+    ns = sort!(collect(values(ns)); by=t -> t.idx)
+    spells = fill(typemin(T):typemax(T), length(ns))
+    EventHistory(es, ns, spells)
 end
 
 events(hist::EventHistory) = hist.events
-actors(hist::EventHistory) = hist.actors
+nodes(hist::EventHistory) = hist.nodes
 spells(hist::EventHistory) = hist.spells
 
 eventtype(::EventHistory{A,T,E}) where {A,T,E} = E
@@ -65,12 +88,12 @@ function _format(x::Integer)
 end
 
 function print_history(io, h::EventHistory{A,T,E}, compact) where {A,T,E}
-    nactors = length(actors(h))
+    nnodes = length(nodes(h))
     nevents = length(events(h))
     if compact
         print(io, "EventHistory{$A, $T, $E, ...}")
     else
-        println(io, "EventHistory with $(_format(nevents)) events and $(_format(nactors)) actors")
+        println(io, "EventHistory with $(_format(nevents)) events and $(_format(nnodes)) nodes")
         println(io, " event type: $E")
         println(io, " actor type: $A")
         println(io, " time  type: $T")
@@ -83,9 +106,11 @@ end
     isactive(h, i, t)
 
 Check if the `i`th actor is active at time `t`. Note that when 
-actors `actors(h)` are represented by a range of contiguous
-integers, `i` is equal to `actors(h)[i]`.
+nodes `nodes(h)` are represented by a range of contiguous
+integers, `i` is equal to `nodes(h)[i]`.
 """
-isactive(h::EventHistory, i::Integer, t)::Bool = t in spells(h)[i]
-riskset(h::EventHistory, t) = findall(a -> isactive(h, a, t), actors(h))
+isactive(h::EventHistory{A,T}, i::Integer, t::T) where {A,T} = t in h.spells[i]
+isactive(h::EventHistory{A,T}, i::Node{A}, t::T) where {A,T} = t in h.spells[i.idx]
+
+riskset(h::EventHistory, t) = filter(a -> isactive(h, a, t), nodes(h))
 

@@ -3,8 +3,10 @@ abstract type AbstractRelationalEvent{A,T} end
 actortype(::AbstractRelationalEvent{A,T}) where {A,T} = A
 timetype(::AbstractRelationalEvent{A,T}) where {A,T} = T
 
-src(e::AbstractRelationalEvent) = e.src
-dst(e::AbstractRelationalEvent) = e.dst
+src(e::AbstractRelationalEvent) = e.src.info
+dst(e::AbstractRelationalEvent) = e.dst.info
+isrc(e::AbstractRelationalEvent) = e.src.idx
+idst(e::AbstractRelationalEvent) = e.dst.idx
 eventtime(e::AbstractRelationalEvent) = e.time
 
 function Base.show(io::IO, e::AbstractRelationalEvent)
@@ -17,6 +19,16 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractRelationalEvent)
     print_event(io, e, compact)
 end
 
+"""
+Wrapper struct containing node metadata and a contiguous integer index.
+"""
+struct Node{T}
+    idx::Int32
+    info::T
+end
+
+Node(i::Integer) = Node(convert(Int32, i), i)
+Node(i::Integer, a) = Node(convert(Int32, i), a)
 
 """
     RelationalEvent(sender, receiver, time)
@@ -43,8 +55,8 @@ RelationalEvent{Int64, Float64}
 ```
 """
 struct RelationalEvent{A,T} <: AbstractRelationalEvent{A,T}
-    src::A
-    dst::A
+    src::Node{A}
+    dst::Node{A}
     time::T
 end
 
@@ -87,8 +99,8 @@ MarkedRelationalEvent{Int64, Float64, String}
 ```
 """
 struct MarkedRelationalEvent{A,T,M} <: AbstractRelationalEvent{A,T}
-    src::A
-    dst::A
+    src::Node{A}
+    dst::Node{A}
     time::T
     mark::M
 end

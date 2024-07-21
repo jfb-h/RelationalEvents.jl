@@ -1,13 +1,14 @@
 module RelationalEvents
 
 using StatsBase: sample
+using StreamSampling: itsample
 using SparseArrayKit: SparseArray
 
 export AbstractRelationalEvent, RelationalEvent, MarkedRelationalEvent
 export src, dst, eventtime, mark
 
 export EventHistory
-export events, actors
+export events, nodes
 export isactive, riskset
 
 export Spec
