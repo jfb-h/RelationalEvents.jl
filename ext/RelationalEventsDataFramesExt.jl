@@ -6,7 +6,7 @@ using DataFrames
 function DataFrames.DataFrames.DataFrame(es::RelationalEvents.EventStats)
     df = DataFrame(es.stats, es.statnames)
     insertcols!(df, 1, :id => es.idxs)
-    insertcols!(df, 2, :event => es.dyads)
+    insertcols!(df, 2, :event => es.events)
     df
 end
 

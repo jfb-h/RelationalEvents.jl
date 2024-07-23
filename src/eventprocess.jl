@@ -6,17 +6,18 @@ Struct containing the specification for the computation of event statistics.
 # Fields
 - `N_events::Int`             # number of events to sample
 - `N_cases::Int`              # number of control cases to sample
-- `halflife::T`         # halflife time for exponential decay
+- `t0::S`                     # Startpoint of the event history
+- `thalf::T`                  # halflife time for exponential decay
 - `tol::Float64 = 0.01`       # tolerance at which to set weights to zero
 - `startmult::Float64 = 2.0`  # halflife multiplier after which to start sampling
 """
 @kwdef struct Spec{T,S}
     N_events::Int
     N_cases::Int
-    halflife::T
+    t0::S
+    thalf::T
     tol::Float64 = 0.01
     startmult::Float64 = 2.0
-    starttime::S
 end
 
 """
@@ -56,7 +57,7 @@ Set the time of the last weight update in `EventProcess` `p` to `eventtime(e)`.
 """
 function update_wutimes!(p::EventProcess, e, spec::Spec)
     s, d, t = isrc(e), idst(e), eventtime(e)
-    p.wutimes[s, d] = t - spec.starttime
+    p.wutimes[s, d] = t - spec.t0
 end
 
 """
@@ -67,9 +68,9 @@ halflife time specified by `spec`. If the weight is below given tolerance `spec.
 the weight will be set to zero for reasons of memory efficiency.
 """
 function update_weights!(p::EventProcess, e, spec::Spec)
-    s, d, t = isrc(e), idst(e), eventtime(e) - spec.starttime
+    s, d, t = isrc(e), idst(e), eventtime(e) - spec.t0
     t_prev = p.wutimes[s, d]
-    p.weights[s, d] = exp(-(t - t_prev) / spec.halflife * log(2)) * p.weights[s, d]
+    p.weights[s, d] = exp(-(t - t_prev) / spec.thalf * log(2)) * p.weights[s, d]
     p.weights[s, d] < spec.tol && delete!(p.weights.data, CartesianIndex(s, d))
     p.weights[s, d]
 end
@@ -82,6 +83,66 @@ Update `EventProcess` `p` according to specification `spec` for the occurred eve
 function add_event!(p::EventProcess, e, spec::Spec)
     update_process!(p, e, spec)
     p.weights[isrc(e), idst(e)] += one(eltype(p.weights))
+end
+
+
+"""
+Struct containing statistics about a sampled event history and control cases, 
+to be used for fitting a relational event model.
+"""
+struct EventStats{
+    T<:AbstractMatrix{<:Real},
+    I<:AbstractVector{<:Integer},
+    D<:AbstractVector{<:AbstractRelationalEvent},
+    N<:AbstractVector{<:AbstractString}
+}
+    stats::T
+    idxs::I
+    events::D
+    statnames::N
+    N_events::Int
+    N_nodes::Int
+
+    # function EventStats(s, i, d, n) #TODO: figure out type parameters
+    #
+    #     s1, s2, s3 = size(s, 1), length(i), length(d)
+    #
+    #     s1 == s2 == s3 || throw(DimensionMismatch(
+    #         "size(stats, 1) = $(s1), length(idxs) = $(s2), and length(events) = $(s3) but the three should be equal."))
+    #
+    #     size(s, 2) == length(n) || throw(DimensionMismatch(
+    #         "size(stats, 2) = $(size(s, 2)) and length(statnames) = $(length(n)) but should be equal."))
+    #
+    #     new(s, i, d, n)
+    # end
+end
+
+
+function Base.show(io::IO, h::EventStats)
+    compact = get(io, :compact, true)
+    print_history(io, h, compact)
+end
+
+function Base.show(io::IO, ::MIME"text/plain", e::EventStats)
+    compact = get(io, :compact, false)
+    print_history(io, e, compact)
+end
+
+function print_history(io, h::EventStats, compact)
+    N_sampled = length(unique(h.idxs))
+    N_cases = findfirst(!=(first(h.idxs)), h.idxs) - 1
+    if compact
+        print(io, "EventStats ($(join(h.statnames, ", ")))")
+    else
+        println(io, "EventStats ($(join(h.statnames, ", ")))")
+        print(io, " sampled events: $(_format(N_sampled)) out of ")
+        println(io, "$(_format(h.N_events)) ($(round(N_sampled / h.N_events * 100, digits=2))%)")
+        println(io, " sampled cases:  $(_format(N_cases)) with $(_format(h.N_nodes)) nodes")
+    end
+end
+
+function init_process(h::EventHistory, ::Spec{T}) where {T}
+    EventProcess{Float32,T}(length(nodes(h)))
 end
 
 """
@@ -113,20 +174,12 @@ end
 #     itsample(rs, spec.N_cases)
 # end
 
-# function sample_active(hist::EventHistory{A,T}, t::T) where {A,T}
-#     c = 0
-#     ns = nodes(hist)
-#     out = first(ns)
-#     for n in ns
-#         if isactive(hist, n, t)
-#             c += 1
-#             if rand() < 1 / c
-#                 out = n
-#             end
-#         end
-#     end
-#     out
-# end
+function sample_events(h::EventHistory, spec::Spec)
+    t0 = eventtime(first(h)) + spec.startmult * spec.thalf
+    from = findfirst(e -> eventtime(e) >= t0, events(h))
+    to = length(h)
+    sort!(sample(from:to, spec.N_events; replace=false))
+end
 
 function sample_active(active, nactive)
     target = rand(1:nactive)
@@ -138,82 +191,32 @@ function sample_active(active, nactive)
     end
 end
 
-"""
-Struct containing statistics about a sampled event history and control cases, 
-to be used for fitting a relational event model.
-"""
-struct EventStats{
-    T<:AbstractMatrix{<:Real},
-    I<:AbstractVector{<:Integer},
-    D<:AbstractVector{<:AbstractRelationalEvent},
-    N<:AbstractVector{<:AbstractString}
-}
-    stats::T
-    idxs::I
-    dyads::D
-    statnames::N
-    N_events::Int
-    N_nodes::Int
-
-    # function EventStats(s, i, d, n) #TODO: figure out type parameters
-    #
-    #     s1, s2, s3 = size(s, 1), length(i), length(d)
-    #
-    #     s1 == s2 == s3 || throw(DimensionMismatch(
-    #         "size(stats, 1) = $(s1), length(idxs) = $(s2), and length(dyads) = $(s3) but the three should be equal."))
-    #
-    #     size(s, 2) == length(n) || throw(DimensionMismatch(
-    #         "size(stats, 2) = $(size(s, 2)) and length(statnames) = $(length(n)) but should be equal."))
-    #
-    #     new(s, i, d, n)
-    # end
-end
-
-
-function Base.show(io::IO, h::EventStats)
-    compact = get(io, :compact, true)
-    print_history(io, h, compact)
-end
-
-function Base.show(io::IO, ::MIME"text/plain", e::EventStats)
-    compact = get(io, :compact, false)
-    print_history(io, e, compact)
-end
-
-function print_history(io, h::EventStats, compact)
-    N_sampled = length(unique(h.idxs))
-    N_cases = findfirst(!=(first(h.idxs)), h.idxs) - 1
-    if compact
-        print(io, "EventStats ($(join(h.statnames, ", ")))")
-    else
-        println(io, "EventStats ($(join(h.statnames, ", ")))")
-        print(io, " sampled events: $(_format(N_sampled)) out of ")
-        println(io, "$(_format(h.N_events)) ($(Int(round(N_sampled / h.N_events * 100, digits=0)))%)")
-        println(io, " sampled cases:  $(_format(N_cases)) with $(_format(h.N_nodes)) nodes")
-    end
-end
-
-function init_process(h::EventHistory, spec::Spec)
-    A = length(nodes(h))
-    EventProcess{Float32,U}(A)
-end
-
-function sample_events(h::EventHistory, spec::Spec)
-    t0 = eventtime(first(h))
-    sample_range = findfirst(e -> eventtime(e) >= (t0 + spec.startmult * spec.halflife), events(h)):length(h)
-    Set(sample(sample_range, spec.N_events; replace=false))
-end
-
-function sample_cases(h::EventHistory, events, spec::Spec)
-    map(@views events[events]) do e
+function sample_cases(sampled_events, h::EventHistory, spec::Spec)
+    es = repeat(sampled_events; inner=spec.N_cases)
+    cs = fill(first(h), spec.N_events * (spec.N_cases))
+    for (i, eid) in enumerate(sampled_events)
+        e = events(h)[eid]
         t = eventtime(e)
         active = [t >= first(s) && t <= last(s) for s in spells(h)]
         nactive = sum(active)
-        map(1:spec.N_cases) do _
+        rscount = 0
+        while rscount < spec.N_cases
+            idx = (i - 1) * (spec.N_cases) + rscount + 1
+            # sample event from riskset, first is always the observed
             s, d = sample_active(active, nactive), sample_active(active, nactive)
             s, d = nodes(h)[s], nodes(h)[d]
+            c = rscount == 0 ? e : RelationalEvent(s, d, t)
+            # reject loops and duplicates
+            isrc(c) == idst(c) && continue
+            if rscount > 0
+                c in view(cs, (idx-rscount):(idx-1)) && continue
+            end
+            # store sampled event
+            cs[idx] = c
+            rscount += 1
         end
     end
+    es, cs
 end
 
 """
@@ -236,6 +239,7 @@ hist = ... # EventHistory
 spec = Spec(
     50,   # number of events to sample
     10,   # number of control cases to sample
+    1,    # origin time of the event history
     30,   # halflife time (e.g., days)
     0.01, # threshold at which to set dyads to zero
     2     # halflife multiplier after which to start sampling
@@ -249,49 +253,19 @@ function statistics(h::EventHistory{S,T,E}, spec::Spec{U,T}; funcs...) where {S,
     spec.N_events <= length(h) || throw(DimensionMismatch("Cannot sample more events than there are in the history"))
     # initialize event process
     p = init_process(h, spec)
-    # allocate result objects
-    stats = zeros(Float32, N, length(funcs))
-    eidxs = zeros(Int32, N)
-    dyads = E[]
-    # sizehint!(E, N)
-    # sample events for which to compute stats
-    sampl = sample_events(h, spec)
-    # loop over all events
-    evcount = 0
-    for (i, e) in enumerate(h)
-        t = eventtime(e)
-        # only compute stats for sampled events
-        if i in sampl
-            active = [t >= first(s) && t <= last(s) for s in spells(h)]
-            nactive = sum(active)
-            rscount = 0
-            while rscount < spec.N_cases + 1
-                idx = evcount * (spec.N_cases + 1) + rscount + 1
-                # sample event from riskset, first is always the observed
-                # s, d = sample_active(active, nactive), sample_active(active, nactive)
-                # s, d = nodes(h)[s], nodes(h)[d]
-                s, d = rand(nodes(h)), rand(nodes(h))
-                c = rscount == 0 ? e : RelationalEvent(s, d, t)
-                # reject loops and duplicates
-                isrc(c) == idst(c) && continue
-                if !isempty(dyads)
-                    c in view(dyads, (idx-rscount):(idx-1)) && continue
-                end
-                # store event id and sampled event
-                eidxs[idx] = i
-                push!(dyads, c)
-                # compute and store stats for all stats funs, update process
-                for (j, (_, f)) in enumerate(pairs(funcs))
-                    @views stats[idx, j] = f(c, p, h, spec)
-                end
-                rscount += 1
-            end
-            evcount += 1
+    statnames = [string(k) for k in keys(funcs)]
+    # allocate result object
+    stats = zeros(Float32, spec.N_events * spec.N_cases, length(funcs))
+    # sample events and control cases for which to compute stats
+    sampled = sample_events(h, spec)
+    eventids, cases = sample_cases(sampled, h, spec)
+    # loop through events and compute stats, update process
+    for i in eachindex(cases)
+        for (j, (_, f)) in enumerate(pairs(funcs))
+            @views stats[i, j] = f(cases[i], p, h, spec)
         end
-        # update process for every event, even if not sampled
-        add_event!(p, e, spec)
+        i % spec.N_cases == 0 && add_event!(p, h.events[eventids[i]], spec)
     end
-    statnames = [string(n) for (n, _) in funcs]
-    EventStats(stats, eidxs, dyads, statnames, length(h), length(nodes(h)))
+    EventStats(stats, eventids, cases, statnames, length(h), length(nodes(h)))
 end
 

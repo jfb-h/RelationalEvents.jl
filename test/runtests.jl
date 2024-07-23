@@ -58,29 +58,22 @@ end
 end
 
 
-hist = let
-    es = [(1, 2, 5), (2, 1, 8), (1, 2, 9), (1, 3, 12), (2, 3, 13), (1, 2, 14)]
-    EventHistory(es)
-end
-
-spec = let
-    events_sampled, cases_sampled = length(hist), 5
-    thalf, thresh, mult = 3, 0.01, 0.0
-    starttime = 1
-    Spec(events_sampled, cases_sampled, thalf, thresh, mult, starttime)
-end
+hist = EventHistory([(1, 2, 5), (2, 1, 8), (1, 2, 9), (1, 3, 12), (2, 3, 13), (1, 2, 14)])
+spec = Spec(N_events=6, N_cases=5, t0=1, thalf=3, tol=0.01, startmult=0.0)
 
 @testset "EventProcess" begin
     res = statistics(hist, spec)
-    cases = spec.N_cases + 1
+    cases = spec.N_cases
 
-    @test issorted(res.dyads; by=eventtime)
+    @test issorted(res.events; by=eventtime)
     @test all(res.idxs .== repeat(1:length(hist); inner=cases))
-    @test all(hist[i] == d for (i, d) in enumerate(res.dyads) if i % spec.N_cases + 1 == 0)
+    @test all(hist[i] == d for (i, d) in enumerate(res.events) if i % spec.N_cases + 1 == 0)
 end
 
 @testset "Statistics" begin
     res = statistics(hist, spec; inertia, reciprocity)
+
+    @test res.events[1:spec.N_cases:(spec.N_events*spec.N_cases)] == events(hist)
 
     @test res.stats[findfirst(==(3), res.idxs), 1] ≈ 0.39685
     @test res.stats[findfirst(==(6), res.idxs), 1] ≈ 0.43998

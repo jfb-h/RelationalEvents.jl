@@ -1,13 +1,15 @@
 using Revise, REPL, Chairmarks, Profile
+using Dates
 using RelationalEvents
+using RelationalEvents: sample_active, spells
 
-h = generate(1000, 10; actortype=Int, datetype=Int, daterange=1:10_000)
-spec = Spec(50, 10, 30.0f0, 0.01f0)
+h = RelationalEvents.generate(2_500_000, 40_000; actortype=String, datetype=Int, daterange=1:10_000_000)
+spec = Spec(10_000, 9, 90, 0.01, 2.0, 0)
 
-@profview compute(h, spec, (;inertia, reciprocity,))
-@profview_allocs compute(h, spec, (;inertia, reciprocity,))
-@b compute(h, spec, (;inertia, reciprocity,))
-stats, event, dyads = compute(h, spec, (;inertia, reciprocity,))
+sampled_events = RelationalEvents.sample_events(h, spec)
+es, cs = RelationalEvents.sample_cases(sampled_events, h, spec)
+cs
 
-p = EventProcess{Float32, Int32}(10)
-@b RelationalEvents.update_weights!(p, h[500], spec)
+@time RelationalEvents.sample_cases(sampled_events, h, spec)
+# @profview RelationalEvents.sample_cases(sampled_events, h, spec)
+

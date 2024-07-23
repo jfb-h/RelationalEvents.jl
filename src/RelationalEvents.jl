@@ -1,14 +1,14 @@
 module RelationalEvents
 
 using StatsBase: sample
-using StreamSampling: itsample
 using SparseArrayKit: SparseArray
+# using StreamSampling: itsample
 
 export AbstractRelationalEvent, RelationalEvent, MarkedRelationalEvent
 export src, dst, eventtime, mark
 
 export EventHistory
-export events, nodes
+export events, nodes, spells
 export isactive, riskset
 
 export Spec
@@ -20,9 +20,7 @@ include("history.jl")
 include("eventprocess.jl")
 include("statistics.jl")
 
-# include("../test/fake-data.jl") # for testing
-
-#TODO: Allow all actor types
+include("../test/fake-data.jl") # for testing
 
 #TODO: improve MarkedRelationalEvent support
 
@@ -32,6 +30,6 @@ include("statistics.jl")
 
 #TODO: Add further standard statistics
 
-#TODO: Further profile allocations
+#TODO: Initial modelling support
 
 end # module
