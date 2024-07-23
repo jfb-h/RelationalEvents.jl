@@ -36,21 +36,22 @@ Node(i::Integer, a) = Node(convert(Int32, i), a)
 Type to represent a basic unmarked relational event containing the
 sender, the receiver, and the timestamp of the event.
 
-Sender and receiver are required to be of the same type.
+Sender and receiver are required to be `Node{T}`, where T can be any type.
+Nodes carry a contiguous integer id alongside the node data.
 
 # Examples
 
 ```julia
-julia> sender = 2;
+julia> sender = RelationalEvents.Node(1, "a");
 
-julia> receiver = 4;
+julia> receiver = RelationalEvents.Node(2, "b");
 
 julia> time = 1.0;
 
 julia> RelationalEvent(sender, receiver, time)
-RelationalEvent{Int64, Float64}
- sender: 2
- receiver: 4
+RelationalEvent{String, Float64}
+ sender: a
+ receiver: b
  time: 1.0
 ```
 """
@@ -81,19 +82,18 @@ Sender and receiver are required to be of the same type.
 
 # Examples
 
-```julia
-julia> sender = 2;
+julia> sender = RelationalEvents.Node(1, "a");
 
-julia> receiver = 4;
+julia> receiver = RelationalEvents.Node(2, "b");
 
 julia> time = 1.0;
 
-julia> type = "x";
+julia> mark = "x";
 
-julia> MarkedRelationalEvent(sender, receiver, time, type)
-MarkedRelationalEvent{Int64, Float64, String}
- sender: 2
- receiver: 4
+julia> MarkedRelationalEvent(sender, receiver, time, mark)
+RelationalEvent{String, Float64, String}
+ sender: a
+ receiver: b
  time: 1.0
  mark: x
 ```
