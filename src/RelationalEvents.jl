@@ -20,7 +20,7 @@ include("history.jl")
 include("eventprocess.jl")
 include("statistics.jl")
 
-include("../test/fake-data.jl") # for testing
+# include("../test/fake-data.jl") # for testing
 
 #TODO: improve MarkedRelationalEvent support
 
