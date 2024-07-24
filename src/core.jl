@@ -78,7 +78,8 @@ end
 Type to represent a marked relational event containing the
 sender, the receiver, the timestamp, and the mark of the event.
 
-Sender and receiver are required to be of the same type.
+Sender and receiver are required to be `Node{T}`, where T can be any type.
+Nodes carry a contiguous integer id alongside the node data.
 
 # Examples
 
