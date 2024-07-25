@@ -205,40 +205,12 @@ end
 #     out
 # end
 
-# function sample_riskset_itr(h::EventHistory, t, spec::Spec)
-#     # more elegant but sadly slower. Maybe transducers?
-#     rs = Iterators.filter(a -> isactive(h, a, t), nodes(h))
-#     rs = Iterators.product(rs, rs)
-#     rs = Iterators.filter(t -> t[1] != t[2], rs)
-#     itsample(rs, spec.N_cases)
-# end
-
 function sample_events(h::EventHistory, spec::Spec)
     t0 = eventtime(first(h)) + spec.startmult * spec.thalf
     from = findfirst(e -> eventtime(e) >= t0, events(h))
     to = length(h)
     sort!(sample(from:to, spec.N_events; replace=false))
 end
-
-# struct OffdiagVector{N,T} <: AbstractVector{T} end
-# const OV{N,T} = OffdiagVector{N,T}
-# Base.size(::OV{N,T}) where {N,T} = (N * N,)
-# Base.getindex(::OV{N,T}, i::Integer) where {N,T} = T((i - 1) % N != div(i - 1, N))
-#
-# function sample_riskset!(idxs, N=length(idxs))
-#     I = CartesianIndices((1:N, 1:N))
-#     v = OV{N,Float32}()
-#     w = Weights(v)
-#     sample!(I, w, idxs; replace=false)
-# end
-#
-# function prep(N)
-#     I = CartesianIndices((1:N, 1:N))
-#     v = OV{N,Float32}()
-#     w = Weights(v)
-#     o = Vector{CartesianIndex{2}}(undef, N)
-#     o, I, w
-# end
 
 function sample_cases(sampled_events, h::EventHistory, spec::Spec)
     es = repeat(sampled_events; inner=spec.N_cases)
@@ -247,10 +219,12 @@ function sample_cases(sampled_events, h::EventHistory, spec::Spec)
         e = events(h)[eid]
         t = eventtime(e)
         active = findall(s -> first(s) <= t <= last(s), spells(h))
+        #TODO: Maybe give IntervalTrees another try
         rscount = 0
         while rscount < spec.N_cases
             idx = (i - 1) * (spec.N_cases) + rscount + 1
             # sample event from riskset, first is always the observed
+            s, d = rand(active), rand(active)
             s, d = nodes(h)[s], nodes(h)[d]
             c = rscount == 0 ? e : RelationalEvent(s, d, t)
             # reject loops and duplicates

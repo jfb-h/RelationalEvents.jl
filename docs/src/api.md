@@ -48,10 +48,6 @@ RelationalEvents.Node
 ```
 
 ```@docs
-RelationalEvents.sample_riskset
-```
-
-```@docs
 RelationalEvents.update_process!
 ```
 

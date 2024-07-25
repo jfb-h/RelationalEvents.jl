@@ -2,7 +2,7 @@ module RelationalEvents
 
 using StatsBase: sample, Weights
 using SparseArrayKit: SparseArray
-using StreamSampling: itsample
+# using StreamSampling: itsample
 
 export AbstractRelationalEvent, RelationalEvent, MarkedRelationalEvent
 export src, dst, eventtime, mark
