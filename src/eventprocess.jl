@@ -23,19 +23,40 @@ end
 """
     EventProcess{W,E}
 
-Struct holding sparse arrays with weights and weight update times.
-This is updated iterativeley as statistics are computed.
+Struct holding sparse arrays with weights and weight update times, and vectors with
+in- and outdegrees. This is updated iterativeley as statistics are computed.
 """
 struct EventProcess{W,E}
     # Sparse Array with weights for all pairs
     weights::SparseArray{W,2}
     # Sparse Array holding the last time a weight was updated
     wutimes::SparseArray{E,2}
+    # Vectors holding accumulated degrees
+    indegrees::Vector{W}
+    outdegrees::Vector{W}
+    # Vectors with update times for degrees
+    indegtimes::Vector{E}
+    outdegtimes::Vector{E}
+    # Vector with node ids of active nodes
+    active::Vector{Int32}
 end
-function EventProcess{W,E}(N) where {W,E}
+function EventProcess{W,E}(N, S) where {W,E}
     weights = SparseArray{W,2}(undef, (N, N))
     wutimes = SparseArray{E,2}(undef, (N, N))
-    EventProcess{W,E}(weights, wutimes)
+    sizehint!(weights.data, S)
+    sizehint!(wutimes.data, S)
+    indegrees = zeros(W, N)
+    outdegrees = zeros(W, N)
+    indegtimes = zeros(E, N)
+    outdegtimes = zeros(E, N)
+    active = Int32[]
+    sizehint!(active, N)
+    EventProcess{W,E}(
+        weights, wutimes,
+        indegrees, outdegrees,
+        indegtimes, outdegtimes,
+        active
+    )
 end
 
 """
@@ -58,7 +79,10 @@ Set the time of the last weight update in `EventProcess` `p` to `eventtime(e)`.
 function update_wutimes!(p::EventProcess, e, spec::Spec)
     s, d, t = isrc(e), idst(e), eventtime(e)
     p.wutimes[s, d] = t - spec.t0
+    p
 end
+
+decay(w, t, t_prev, thalf) = exp(-(t - t_prev) / thalf * log(2)) * w
 
 """
     update_weights!(p, e, spec)
@@ -70,9 +94,26 @@ the weight will be set to zero for reasons of memory efficiency.
 function update_weights!(p::EventProcess, e, spec::Spec)
     s, d, t = isrc(e), idst(e), eventtime(e) - spec.t0
     t_prev = p.wutimes[s, d]
-    p.weights[s, d] = exp(-(t - t_prev) / spec.thalf * log(2)) * p.weights[s, d]
+    p.weights[s, d] = decay(p.weights[s, d], t, t_prev, spec.thalf)
     p.weights[s, d] < spec.tol && delete!(p.weights.data, CartesianIndex(s, d))
     p.weights[s, d]
+    p
+end
+
+function update_outdegrees!(p::EventProcess, v, t, spec::Spec)
+    t = t - spec.t0
+    t_prev = p.outdegtimes[v]
+    p.outdegrees[v] = decay(p.outdegrees[v], t, t_prev, spec.thalf)
+    p.outdegtimes[v] = t
+    p
+end
+
+function update_indegrees!(p::EventProcess, v, t, spec::Spec)
+    t = t - spec.t0
+    t_prev = p.indegtimes[v]
+    p.indegrees[v] = decay(p.indegrees[v], t, t_prev, spec.thalf)
+    p.indegtimes[v] = t
+    p
 end
 
 """
@@ -80,11 +121,26 @@ end
 
 Update `EventProcess` `p` according to specification `spec` for the occurred event `e`.
 """
-function add_event!(p::EventProcess, e, spec::Spec)
+function add_event!(p::EventProcess{W}, e, spec::Spec) where {W}
     update_process!(p, e, spec)
-    p.weights[isrc(e), idst(e)] += one(eltype(p.weights))
+    update_outdegrees!(p, isrc(e), eventtime(e), spec)
+    update_indegrees!(p, idst(e), eventtime(e), spec)
+    p.weights[isrc(e), idst(e)] += one(W)
+    p.outdegrees[isrc(e)] += one(W)
+    p.indegrees[idst(e)] += one(W)
+    p
 end
 
+# function init_active!(p::EventProcess, h::EventHistory, spec::Spec)
+#     for n in nodes(h)
+#         entry(n) <= spec.t0 && push!(p.active, n.idx)
+#     end
+#     p
+# end
+#
+# function update_active!(p::EventProcess, t, spec)
+#
+# end
 
 """
 Struct containing statistics about a sampled event history and control cases, 
@@ -102,19 +158,6 @@ struct EventStats{
     statnames::N
     N_events::Int
     N_nodes::Int
-
-    # function EventStats(s, i, d, n) #TODO: figure out type parameters
-    #
-    #     s1, s2, s3 = size(s, 1), length(i), length(d)
-    #
-    #     s1 == s2 == s3 || throw(DimensionMismatch(
-    #         "size(stats, 1) = $(s1), length(idxs) = $(s2), and length(events) = $(s3) but the three should be equal."))
-    #
-    #     size(s, 2) == length(n) || throw(DimensionMismatch(
-    #         "size(stats, 2) = $(size(s, 2)) and length(statnames) = $(length(n)) but should be equal."))
-    #
-    #     new(s, i, d, n)
-    # end
 end
 
 
@@ -141,30 +184,26 @@ function print_history(io, h::EventStats, compact)
     end
 end
 
-function init_process(h::EventHistory, ::Spec{T}) where {T}
-    EventProcess{Float32,T}(length(nodes(h)))
-end
-
-"""
-    sample_riskset(h, t, spec)
-
-Sample a set of `spec.N_cases` control events from the riskset, i.e.,
-all possible dyads of nodes active at time `t`.
-"""
-function sample_riskset(h::EventHistory{A,T,E}, t::T, spec::Spec) where {A,T,E<:AbstractRelationalEvent}
-    rs = riskset(h, t)
-    nt = length(rs)
-    spec.N_cases <= nt * (nt - 1) || error("Can't sample more than N(N-1) cases")
-    out = Vector{E}()
-    sizehint!(out, spec.N_cases)
-    while length(out) < spec.N_cases
-        s, d = rand(rs), rand(rs)
-        s == d && continue
-        (s, d) in out && continue
-        push!(out, E(s, d, t)) #TODO: handle marks
-    end
-    out
-end
+# """
+#     sample_riskset(h, t, spec)
+#
+# Sample a set of `spec.N_cases` control events from the riskset, i.e.,
+# all possible dyads of nodes active at time `t`.
+# """
+# function sample_riskset(h::EventHistory{A,T,E}, t::T, spec::Spec) where {A,T,E<:AbstractRelationalEvent}
+#     rs = riskset(h, t)
+#     nt = length(rs)
+#     spec.N_cases <= nt * (nt - 1) || error("Can't sample more than N(N-1) cases")
+#     out = Vector{E}()
+#     sizehint!(out, spec.N_cases)
+#     while length(out) < spec.N_cases
+#         s, d = rand(rs), rand(rs)
+#         s == d && continue
+#         (s, d) in out && continue
+#         push!(out, E(s, d, t)) #TODO: handle marks
+#     end
+#     out
+# end
 
 # function sample_riskset_itr(h::EventHistory, t, spec::Spec)
 #     # more elegant but sadly slower. Maybe transducers?
@@ -181,15 +220,25 @@ function sample_events(h::EventHistory, spec::Spec)
     sort!(sample(from:to, spec.N_events; replace=false))
 end
 
-function sample_active(active, nactive)
-    target = rand(1:nactive)
-    current_count = 0
-    for i in eachindex(active)
-        active[i] || continue
-        current_count += 1
-        current_count == target && return i
-    end
-end
+# struct OffdiagVector{N,T} <: AbstractVector{T} end
+# const OV{N,T} = OffdiagVector{N,T}
+# Base.size(::OV{N,T}) where {N,T} = (N * N,)
+# Base.getindex(::OV{N,T}, i::Integer) where {N,T} = T((i - 1) % N != div(i - 1, N))
+#
+# function sample_riskset!(idxs, N=length(idxs))
+#     I = CartesianIndices((1:N, 1:N))
+#     v = OV{N,Float32}()
+#     w = Weights(v)
+#     sample!(I, w, idxs; replace=false)
+# end
+#
+# function prep(N)
+#     I = CartesianIndices((1:N, 1:N))
+#     v = OV{N,Float32}()
+#     w = Weights(v)
+#     o = Vector{CartesianIndex{2}}(undef, N)
+#     o, I, w
+# end
 
 function sample_cases(sampled_events, h::EventHistory, spec::Spec)
     es = repeat(sampled_events; inner=spec.N_cases)
@@ -197,13 +246,11 @@ function sample_cases(sampled_events, h::EventHistory, spec::Spec)
     for (i, eid) in enumerate(sampled_events)
         e = events(h)[eid]
         t = eventtime(e)
-        active = [t >= first(s) && t <= last(s) for s in spells(h)]
-        nactive = sum(active)
+        active = findall(s -> first(s) <= t <= last(s), spells(h))
         rscount = 0
         while rscount < spec.N_cases
             idx = (i - 1) * (spec.N_cases) + rscount + 1
             # sample event from riskset, first is always the observed
-            s, d = sample_active(active, nactive), sample_active(active, nactive)
             s, d = nodes(h)[s], nodes(h)[d]
             c = rscount == 0 ? e : RelationalEvent(s, d, t)
             # reject loops and duplicates
@@ -250,9 +297,11 @@ res = statistics(hist, spec; inertia, reciprocity)
 """
 function statistics(h::EventHistory{S,T,E}, spec::Spec{U,T}; funcs...) where {S,T,E<:AbstractRelationalEvent,U}
     # check dimensions
+    N, A = length(h), length(nodes(h))
     spec.N_events <= length(h) || throw(DimensionMismatch("Cannot sample more events than there are in the history"))
     # initialize event process
-    p = init_process(h, spec)
+    p = EventProcess{Float32,U}(A, N)
+    # init_active!(p, h)
     statnames = [string(k) for k in keys(funcs)]
     # allocate result object
     stats = zeros(Float32, spec.N_events * spec.N_cases, length(funcs))

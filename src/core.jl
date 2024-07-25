@@ -9,6 +9,10 @@ isrc(e::AbstractRelationalEvent) = e.src.idx
 idst(e::AbstractRelationalEvent) = e.dst.idx
 eventtime(e::AbstractRelationalEvent) = e.time
 
+isrc(e::Tuple) = e[1]
+idst(e::Tuple) = e[2]
+eventtime(e::Tuple) = e[3]
+
 function Base.show(io::IO, e::AbstractRelationalEvent)
     compact = get(io, :compact, true)
     print_event(io, e, compact)
@@ -32,6 +36,7 @@ Node(i::Integer, a) = Node(convert(Int32, i), a)
 
 """
     RelationalEvent(sender, receiver, time)
+
 
 Type to represent a basic unmarked relational event containing the
 sender, the receiver, and the timestamp of the event.

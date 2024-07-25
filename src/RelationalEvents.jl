@@ -1,19 +1,21 @@
 module RelationalEvents
 
-using StatsBase: sample
+using StatsBase: sample, Weights
 using SparseArrayKit: SparseArray
-# using StreamSampling: itsample
+using StreamSampling: itsample
 
 export AbstractRelationalEvent, RelationalEvent, MarkedRelationalEvent
 export src, dst, eventtime, mark
 
 export EventHistory
-export events, nodes, spells
+export events, nodes
+export spells
 export isactive, riskset
 
 export Spec
 export statistics
 export inertia, reciprocity
+export sender_outdegree, sender_indegree, receiver_outdegree, receiver_indegree
 
 include("core.jl")
 include("history.jl")
@@ -22,16 +24,12 @@ include("statistics.jl")
 
 # include("../test/fake-data.jl") # for testing
 
-#TODO: Support for windows
+#TODO: improve activity handling (maintain active / inactive list in EventProcess)
 
 #TODO: improve MarkedRelationalEvent support
 
 #TODO: Makie plotting recipies
 
-#TODO: Stats macro and process updating logic
-
 #TODO: Add further standard statistics
-
-#TODO: Initial modelling support
 
 end # module

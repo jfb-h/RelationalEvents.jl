@@ -49,6 +49,8 @@ end
 events(hist::EventHistory) = hist.events
 nodes(hist::EventHistory) = hist.nodes
 spells(hist::EventHistory) = hist.spells
+entry(node::Node, hist::EventHistory) = first(hist.spells[node.idx])
+exit(node::Node, hist::EventHistory) = last(hist.spells[node.idx])
 
 eventtype(::EventHistory{A,T,E}) where {A,T,E} = E
 timetype(::EventHistory{A,T}) where {A,T} = T
