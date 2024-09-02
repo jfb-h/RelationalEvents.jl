@@ -60,7 +60,7 @@ RelationalEvent{String, Float64}
  time: 1.0
 ```
 """
-struct RelationalEvent{A,T} <: AbstractRelationalEvent{A,T}
+@kwdef struct RelationalEvent{A,T} <: AbstractRelationalEvent{A,T}
     src::Node{A}
     dst::Node{A}
     time::T
@@ -104,7 +104,7 @@ RelationalEvent{String, Float64, String}
  mark: x
 ```
 """
-struct MarkedRelationalEvent{A,T,M} <: AbstractRelationalEvent{A,T}
+@kwdef struct MarkedRelationalEvent{A,T,M} <: AbstractRelationalEvent{A,T}
     src::Node{A}
     dst::Node{A}
     time::T

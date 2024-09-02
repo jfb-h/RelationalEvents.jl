@@ -212,6 +212,11 @@ function sample_events(h::EventHistory, spec::Spec)
     sort!(sample(from:to, spec.N_events; replace=false))
 end
 
+_construct_event(e::E, s, d) where {E<:RelationalEvent} = E(s, d, eventtime(e))
+_construct_event(e::E, s, d) where {E<:MarkedRelationalEvent} = E(s, d, eventtime(e), mark(e))
+# _construct_event(E::Type{RelationalEvent}, x) = E(x...)
+# _construct_event(E::Type{MarkedRelationalEvent}, x) = E(x...)
+
 function sample_cases(sampled_events, h::EventHistory, spec::Spec)
     es = repeat(sampled_events; inner=spec.N_cases)
     cs = fill(first(h), spec.N_events * (spec.N_cases))
@@ -226,7 +231,7 @@ function sample_cases(sampled_events, h::EventHistory, spec::Spec)
             # sample event from riskset, first is always the observed
             s, d = rand(active), rand(active)
             s, d = nodes(h)[s], nodes(h)[d]
-            c = rscount == 0 ? e : RelationalEvent(s, d, t)
+            c = rscount == 0 ? e : _construct_event(e, s, d)
             # reject loops and duplicates
             isrc(c) == idst(c) && continue
             if rscount > 0

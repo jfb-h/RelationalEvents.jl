@@ -15,7 +15,7 @@ export isactive, riskset
 export Spec
 export statistics
 export inertia, reciprocity
-export sender_outdegree, sender_indegree, receiver_outdegree, receiver_indegree
+export activity, popularity, assortativity
 
 include("core.jl")
 include("history.jl")
@@ -26,7 +26,9 @@ include("statistics.jl")
 
 #TODO: improve activity handling (maintain active / inactive list in EventProcess)
 
-#TODO: improve MarkedRelationalEvent support
+#TODO: spells constructor
+
+#TODO: make Survival an extension
 
 #TODO: Makie plotting recipies
 

@@ -40,3 +40,8 @@ function receiver_outdegree(e::AbstractRelationalEvent, p::EventProcess{W}, h::E
     p.outdegrees[idst(e)]
 end
 
+activity(e, p, h, spec) = sender_outdegree(e, p, h, spec)
+popularity(e, p, h, spec) = receiver_indegree(e, p, h, spec)
+assortativity(e, p, h, spec) = activity(e, p, h, spec) * popularity(e, p, h, spec)
+
+

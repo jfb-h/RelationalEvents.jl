@@ -10,13 +10,15 @@ mutable struct EventHistory{A,T,E<:AbstractRelationalEvent{A,T},R<:AbstractRange
     nodes::Vector{Node{A}}
     spells::Vector{R}
 
-    function EventHistory(events::Vector{E}, nodes::Vector{Node{A}}, spells::Vector{R}) where {A,T,E<:AbstractRelationalEvent{A,T},R<:AbstractRange{T}}
+    function EventHistory(
+        events::Vector{E},
+        nodes::Vector{Node{A}},
+        spells::Vector{R}
+    ) where {A,T,E<:AbstractRelationalEvent{A,T},R<:AbstractRange{T}}
         all(a.idx == i for (i, a) in enumerate(nodes)) || error("Node indexes need to be contiguous.")
         new{A,T,E,R}(events, nodes, spells)
     end
 end
-
-# EventHistory(events, nodes, spells) = EventHistory(events, nodes, spells)
 
 function EventHistory(events::AbstractVector{<:AbstractRelationalEvent{A,T}}) where {A,T}
     # events = sort(events, by=eventtime)
@@ -30,16 +32,22 @@ function EventHistory(events::AbstractVector{<:AbstractRelationalEvent{A,T}}) wh
     EventHistory(events, nodes, spells)
 end
 
-function EventHistory(events::AbstractVector{Tuple{A,A,T}}) where {A,T}
+function _tonode(e, ns)
+    map(enumerate(e)) do (i, field)
+        i == 1 || i == 2 ? ns[field] : field
+    end
+end
+
+function EventHistory{A,T,E}(events) where {A,T,E<:AbstractRelationalEvent}
     ns = Dict{A,Node{A}}()
     i = 1
-    es = map(events) do (s, r, t)
-        for a in (s, r)
+    es = map(events) do e
+        for a in (e[1], e[2])
             haskey(ns, a) && continue
             push!(ns, a => Node(Int32(i), a))
             i += 1
         end
-        RelationalEvent(ns[s], ns[r], t)
+        E(_tonode(e, ns)...)
     end
     ns = sort!(collect(values(ns)); by=t -> t.idx)
     spells = fill(typemin(T):typemax(T), length(ns))
