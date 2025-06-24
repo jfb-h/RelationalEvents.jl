@@ -16,13 +16,15 @@ export Spec
 export statistics
 export inertia, reciprocity
 export activity, popularity, assortativity
+export transitivity
 
 include("core.jl")
 include("history.jl")
 include("eventprocess.jl")
 include("statistics.jl")
 
-# include("../test/fake-data.jl") # for testing
+include("../test/fake-data.jl") # for testing
+export generate
 
 #TODO: improve activity handling (maintain active / inactive list in EventProcess)
 
